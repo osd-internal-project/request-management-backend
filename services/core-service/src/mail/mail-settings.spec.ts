@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { ConfigService } from '@nestjs/config';
 import type { Principal } from '@request-management/share';
 import { openSecret, sealSecret } from '../pm/config-rules';
@@ -9,7 +10,7 @@ import {
 import { MailSettingsService } from './mail-settings.service';
 import { MockMailClient } from './mock-mail.client';
 
-const KEY = 'test-config-secret';
+const KEY = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-secret' });
 const GUID_T = '11111111-2222-3333-4444-555555555555';
 const GUID_C = '66666666-7777-8888-9999-000000000000';
 
@@ -124,7 +125,7 @@ describe('mail settings per company (5 พ.ย. 2569)', () => {
       const clients = new MailClientsService(
         config(),
         repo([
-          graphRow({ clientSecretEnc: sealSecret('x', 'other-key') }),
+          graphRow({ clientSecretEnc: sealSecret('x', keyringFromEnv({ CONFIG_SECRET_KEY: 'other-key' })) }),
         ]) as never,
       );
       const resolved = await clients.forCompany('co-1');

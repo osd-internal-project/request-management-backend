@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { openSecret } from '../pm/config-rules';
@@ -7,6 +8,15 @@ import { OutboundConnectionRepository } from './outbound-connection.repository';
 
 /** Vuvagent only queues the run; a call that hangs is a call that failed. */
 const DISPATCH_TIMEOUT_MS = 15_000;
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+const DOCX_MIME =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+export interface DownloadedFile {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+}
 
 /** A dispatch Vuvagent refused (`statusCode`) or that never reached it (null). */
 export class VuvagentDispatchError extends Error {
@@ -21,6 +31,7 @@ export class VuvagentDispatchError extends Error {
 
 /** One agent: its URL, sealed key and endpoint id. */
 interface ConnectionRow {
+  companyId: string;
   action: string | null;
   baseUrl: string;
   secretEnc: string;
@@ -42,7 +53,7 @@ export interface ConnectionTestResult {
  * ```
  * POST {baseUrl}/v1/endpoints/{endpointId}
  *   x-api-key: sk-aily-…
- *   {"agent_record_id": "…", "topic": "…"}
+ *   {"agent_record_id": "…", "organization_id": "{companyId}", "topic": "…"}
  * → 202 {"sessionId": "…"}
  * ```
  *
@@ -60,16 +71,7 @@ export class VuvagentClient {
     action: AgentAction,
     body: { agent_record_id: string } & Record<string, unknown>,
   ): Promise<void> {
-    const connection = (await this.connections.findFirst({
-      where: { companyId, action, active: true },
-      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
-    })) as ConnectionRow | null;
-    if (!connection) {
-      throw new VuvagentDispatchError(
-        null,
-        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
-      );
-    }
+    const connection = await this.connectionOf(companyId, action);
     const response = await this.post(connection, body);
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
@@ -112,6 +114,93 @@ export class VuvagentClient {
     }
   }
 
+  /**
+   * A file the agent links to in its answer (the proposal .docx, a link that
+   * expires). Only from the connection's own origin, so a callback cannot make
+   * CTD fetch an address of its choosing.
+   */
+  async download(
+    companyId: string,
+    action: AgentAction,
+    url: string,
+    maxBytes: number,
+  ): Promise<DownloadedFile> {
+    const connection = await this.connectionOf(companyId, action);
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      throw new VuvagentDispatchError(null, `ลิงก์ไฟล์ไม่ถูกต้อง: ${url}`);
+    }
+    if (target.origin !== new URL(connection.baseUrl).origin) {
+      throw new VuvagentDispatchError(
+        null,
+        `ลิงก์ไฟล์ไม่ได้อยู่ที่ ${connection.baseUrl}`,
+      );
+    }
+    const problems = await addressProblems(
+      target.href,
+      this.config.get<string[]>('webhook.privateHosts') ?? [],
+    );
+    if (problems.length) {
+      throw new VuvagentDispatchError(null, problems.join(', '));
+    }
+
+    const response = await fetch(target, {
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    }).catch((cause: unknown) => {
+      throw new VuvagentDispatchError(null, String(cause));
+    });
+    if (!response.ok) {
+      throw new VuvagentDispatchError(
+        response.status,
+        `ดาวน์โหลดไฟล์ไม่ได้: HTTP ${response.status}`,
+      );
+    }
+    if (Number(response.headers.get('content-length') ?? 0) > maxBytes) {
+      throw new VuvagentDispatchError(null, 'ไฟล์ใหญ่เกินที่รับได้');
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) {
+      throw new VuvagentDispatchError(null, 'ไฟล์ใหญ่เกินที่รับได้');
+    }
+
+    const type = response.headers.get('content-type')?.split(';')[0].trim();
+    return {
+      fileName:
+        /filename="?([^";]+)"?/i.exec(
+          response.headers.get('content-disposition') ?? '',
+        )?.[1] ?? 'proposal.docx',
+      // Vuvagent's links only ever carry a .docx; a generic type means that
+      mimeType:
+        !type || type === 'application/octet-stream' ? DOCX_MIME : type,
+      buffer,
+    };
+  }
+
+  private async connectionOf(
+    companyId: string,
+    action: AgentAction,
+  ): Promise<ConnectionRow> {
+    const connection = (await this.connections.findFirst({
+      where: { companyId, action, active: true },
+      select: {
+        companyId: true,
+        action: true,
+        baseUrl: true,
+        secretEnc: true,
+        endpointId: true,
+      },
+    })) as ConnectionRow | null;
+    if (!connection) {
+      throw new VuvagentDispatchError(
+        null,
+        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
+      );
+    }
+    return connection;
+  }
+
   private async post(
     connection: ConnectionRow,
     body: Record<string, unknown>,
@@ -145,14 +234,14 @@ export class VuvagentClient {
       method: 'POST',
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, organization_id: connection.companyId }),
     }).catch((cause: unknown) => {
       throw new VuvagentDispatchError(null, String(cause));
     });
   }
 
-  private sealKey(): string {
-    const key = this.config.get<string>('projectConfig.secret');
+  private sealKey(): SecretKeyring {
+    const key = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!key)
       throw new VuvagentDispatchError(null, 'CONFIG_SECRET_KEY is not set');
     return key;

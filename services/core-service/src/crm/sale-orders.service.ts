@@ -18,6 +18,7 @@ import {
   SALE_ORDER_LIST_SELECT,
   SaleOrderRepository,
 } from './sales.repositories';
+import { LeadClosingService } from './lead-closing.service';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
 import { CustomersService } from './customers.service';
@@ -62,6 +63,7 @@ export class SaleOrdersService {
     private readonly quotations: QuotationRepository,
     private readonly erpSync: SaleOrderErpSyncService,
     private readonly catalog: ProductCatalogService,
+    private readonly leadClosing: LeadClosingService,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -318,6 +320,13 @@ export class SaleOrdersService {
     // CD-88: SAP is called AFTER the commit — the user never waits on it.
     if (created.lineCount) this.erpSync.kickCreate(created.id);
 
+    // the sale is real now — the Lead this deal came from closes as won
+    await this.leadClosing.wonByOpportunity(
+      opportunity.id,
+      'sale_order_opened',
+      actor,
+    );
+
     const saleOrder = await this.findOne(created.id, actor);
     return {
       ...saleOrder,
@@ -554,6 +563,12 @@ export class SaleOrdersService {
             customerId: true,
             nameEn: true,
             contactPosition: true,
+            // ผู้ติดต่อเพิ่มเติมของ Lead — ตามไปเป็นผู้ติดต่อของลูกค้าที่สร้างใหม่
+            contacts: {
+              where: { active: true },
+              orderBy: { createdAt: 'asc' },
+              select: { name: true, position: true, phone: true, email: true },
+            },
             addressLine: true,
             district: true,
             province: true,
@@ -626,17 +641,25 @@ export class SaleOrdersService {
       branch_name: dto.customer?.branch_name?.trim() || undefined,
       account_owner_user_id: opportunity.ownerUserId,
       status: 'active',
-      contacts: opportunity.prospectContactName
-        ? [
-            {
-              name: opportunity.prospectContactName,
-              position: lead?.contactPosition ?? undefined,
-              phone: opportunity.prospectPhone ?? undefined,
-              email: opportunity.prospectEmail ?? undefined,
-              is_primary: true,
-            },
-          ]
-        : [],
+      contacts: [
+        ...(opportunity.prospectContactName
+          ? [
+              {
+                name: opportunity.prospectContactName,
+                position: lead?.contactPosition ?? undefined,
+                phone: opportunity.prospectPhone ?? undefined,
+                email: opportunity.prospectEmail ?? undefined,
+                is_primary: true,
+              },
+            ]
+          : []),
+        ...(lead?.contacts ?? []).map((contact) => ({
+          name: contact.name,
+          position: contact.position ?? undefined,
+          phone: contact.phone ?? undefined,
+          email: contact.email ?? undefined,
+        })),
+      ],
       locations: lead?.addressLine
         ? [
             {
@@ -718,6 +741,12 @@ interface OpenOpportunityForSale {
     customerId: string | null;
     nameEn: string | null;
     contactPosition: string | null;
+    contacts?: {
+      name: string;
+      position: string | null;
+      phone: string | null;
+      email: string | null;
+    }[];
     addressLine: string | null;
     district: string | null;
     province: string | null;

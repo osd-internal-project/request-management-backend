@@ -270,13 +270,18 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
 
 describe('CRM Lead — แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อ', () => {
   function leadHarness(
-    options: { status?: string; ownerUserId?: string | null } = {},
+    options: {
+      status?: string;
+      ownerUserId?: string | null;
+      convertedOpportunityId?: string | null;
+    } = {},
   ) {
     const audits: { eventType: string }[] = [];
     const lead = {
       id: 'lead-1',
       name: 'บริษัท มุ่งหวัง จำกัด',
       status: options.status ?? 'qualified',
+      convertedOpportunityId: options.convertedOpportunityId ?? null,
       ownerUserId:
         options.ownerUserId === undefined ? 'me' : options.ownerUserId,
       ownerOrgUnitId: 'unit-sales',
@@ -535,7 +540,7 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
-  it('convert สร้างโอกาสการขายผ่าน OpportunitiesService แล้วปิด Lead เป็น converted พร้อมชี้โอกาสการขาย', async () => {
+  it('convert สร้างโอกาสการขายผ่าน OpportunitiesService แล้วชี้โอกาสการขาย — Lead ยังไม่ปิด (ปิดตอนลูกค้ายืนยัน/เปิดใบสั่งขาย)', async () => {
     const { service, leads, opportunities } = leadHarness();
 
     const opportunity = await service.convert(
@@ -553,11 +558,28 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
     expect(leads.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: 'converted',
           convertedOpportunityId: 'opportunity-9',
         }),
       }),
     );
+    const written = (
+      leads.update.mock.calls as unknown as [{ data: { status?: string } }][]
+    )[0][0];
+    expect(written.data.status).toBeUndefined();
+  });
+
+  it('Lead ที่แปลงแล้วแต่ยังเปิดอยู่ convert ซ้ำไม่ได้ — ไม่เกิดโอกาสการขายใบที่สอง', async () => {
+    const { service, opportunities } = leadHarness({
+      convertedOpportunityId: 'opportunity-1',
+    });
+
+    await expect(
+      service.convert('lead-1', { customer_id: 'cust-1' }, principal()),
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+      details: [{ field: 'converted_opportunity_id', reason: 'converted' }],
+    });
+    expect(opportunities.create).not.toHaveBeenCalled();
   });
 
   it('webhook: convert ส่ง lead.converted พร้อมโอกาสการขายที่เกิด', async () => {
@@ -569,7 +591,7 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       name: 'lead.converted',
       payload: expect.objectContaining({
         lead_id: 'lead-1',
-        status: 'converted',
+        status: 'qualified',
         opportunity_id: 'opportunity-9',
         opportunity_code: 'OPP-OSD-000009',
       }),

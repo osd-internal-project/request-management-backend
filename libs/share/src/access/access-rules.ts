@@ -355,6 +355,22 @@ export function involvedRequestsWhere(subject: AccessSubject): AccessWhere {
   };
 }
 
+/**
+ * The approval cases this person may open (SCOPE-02): a step names them, now
+ * or when it was decided, or they may see the request behind the case.
+ * Holding `approval.decide` or `approval.history.read` alone reaches nothing.
+ */
+export function reachableCaseWhere(subject: AccessSubject): AccessWhere {
+  return {
+    companyId: subject.activeCompanyId,
+    OR: [
+      { steps: { some: decidableStepWhere(subject) } },
+      { steps: { some: { decidedByUserId: subject.userId } } },
+      { request: visibleRequestsWhere(subject) },
+    ],
+  };
+}
+
 /** Requests waiting on this person's decision right now — the อนุมัติ tab. */
 export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
   const named = {

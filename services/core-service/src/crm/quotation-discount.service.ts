@@ -70,6 +70,10 @@ interface QuotationUnderApproval {
   currency: string;
   validUntil: Date | null;
   paymentTerms: string | null;
+  deliveryTime: string | null;
+  warranty: string | null;
+  partyFax: string | null;
+  sellerMobile: string | null;
   note: string | null;
   vatPct: Decimal;
   minMarginPct: Decimal | null;
@@ -260,6 +264,10 @@ export class QuotationDiscountService {
             currency: quotation.currency,
             validUntil: quotation.validUntil,
             paymentTerms: quotation.paymentTerms,
+            deliveryTime: quotation.deliveryTime,
+            warranty: quotation.warranty,
+            partyFax: quotation.partyFax,
+            sellerMobile: quotation.sellerMobile,
             note: quotation.note,
             subtotal: chosen.raw.subtotal,
             discountTotal: chosen.raw.discountTotal,

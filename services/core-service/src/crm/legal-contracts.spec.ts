@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Principal } from '@request-management/share';
 import { extractContractText, normalizeText } from './contract-text';
-import { contractVisibleWhere } from './contract-visibility';
 import { LegalContractsService } from './legal-contracts.service';
 
 /** Printed from plain text by macOS cupsfilter: Thai and English lines. */
@@ -39,20 +38,6 @@ describe('CD-161 contract text', () => {
       extractContractText(Buffer.from('not a pdf'), 'application/pdf'),
     ).resolves.toEqual({ status: 'failed', text: null });
     expect(normalizeText('  a\n\n b\tc ')).toBe('a b c');
-  });
-});
-
-describe('CD-161 who sees a confidential contract', () => {
-  it('manage sees all; anyone else sees ordinary ones plus their own and those they were given', () => {
-    expect(contractVisibleWhere(manager)).toEqual({});
-    expect(contractVisibleWhere(reader)).toEqual({
-      OR: [
-        { confidential: false },
-        { ownerUserId: 'u-read' },
-        { createdBy: 'u-read' },
-        { access: { some: { userId: 'u-read' } } },
-      ],
-    });
   });
 });
 

@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'node:crypto';
@@ -81,9 +82,12 @@ export class ApiKeyAdminService {
    * ที่นี่** — มันไม่ใช่สมบัติของบริษัทไหน และหน้าจอของบริษัทหนึ่งไม่ควรเพิกถอน
    * กุญแจที่อีกบริษัทกำลังใช้อยู่ได้. ใบพวกนั้นยังดูแลจาก CLI เหมือนเดิม.
    */
-  async list(actor: Principal): Promise<ApiKeyRowDto[]> {
+  async list(
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<ApiKeyRowDto[]> {
     const rows = (await this.keys.findMany({
-      where: { companyId: actor.activeCompanyId },
+      where: { companyId: owner },
       orderBy: { createdAt: 'desc' },
     })) as ApiKeyRow[];
 
@@ -91,54 +95,71 @@ export class ApiKeyAdminService {
   }
 
   /** Call examples this key may make: every scope a route demands is on the key. */
-  async examples(id: string, actor: Principal): Promise<ApiExample[]> {
-    const { scopes } = await this.owned(id, actor);
+  async examples(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<ApiExample[]> {
+    const { scopes } = await this.owned(id, actor, owner);
     return API_EXAMPLES.filter((example) =>
       example.scopes.every((scope) => scopes.includes(scope)),
     );
   }
 
-  async issue(dto: IssueApiKeyDto, actor: Principal): Promise<IssuedApiKeyDto> {
+  async issue(
+    dto: IssueApiKeyDto,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<IssuedApiKeyDto> {
     const scopes = assertIssuable(dto.scopes);
     const integrationId = dto.integration_id
-      ? (await this.integrations.owned(dto.integration_id, actor)).id
-      : await this.integrations.createForKey(dto.name.trim(), actor);
+      ? (await this.integrations.owned(dto.integration_id, actor, owner)).id
+      : await this.integrations.createForKey(dto.name.trim(), actor, owner);
 
     const expiresAt = dto.expires_in_days
       ? new Date(Date.now() + dto.expires_in_days * 86_400_000)
       : null;
 
-    const { key, row } = await this.mint(
-      {
-        name: dto.name.trim(),
-        sourceCode: dto.source_code,
-        scopes,
-        expiresAt,
-        integrationId,
-      },
-      actor,
-    );
-    const prefix = row.prefix;
+    // The key and its audit row commit together: a key with no record of who
+    // issued it must never exist (SUP-04).
+    const { key, row } = await this.transactions.execute(async (prisma) => {
+      const minted = await this.mint(
+        {
+          name: dto.name.trim(),
+          sourceCode: dto.source_code,
+          scopes,
+          expiresAt,
+          integrationId,
+        },
+        actor,
+        owner,
+        { prisma },
+      );
 
-    /*
-      บันทึกว่าใครออกกุญแจอะไรให้ช่องทางไหน — **ไม่เคยบันทึกตัวกุญแจ**. audit
-      เป็น append-only และอ่านได้จากหน้าจอ audit; กุญแจที่หลุดลงไปในนั้นคือกุญแจ
-      ที่เพิกถอนไม่ได้จริง เพราะสำเนายังอยู่ในบันทึกที่ลบไม่ได้ตลอดไป.
-    */
-    await this.audit.record({
-      eventType: 'admin.api_key.issued',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: row.id,
-      after: {
-        prefix,
-        name: row.name,
-        sourceCode: row.sourceCode,
-        scopes,
-        expiresAt: expiresAt?.toISOString() ?? null,
-        integrationId,
-      },
+      /*
+        บันทึกว่าใครออกกุญแจอะไรให้ช่องทางไหน — **ไม่เคยบันทึกตัวกุญแจ**. audit
+        เป็น append-only และอ่านได้จากหน้าจอ audit; กุญแจที่หลุดลงไปในนั้นคือกุญแจ
+        ที่เพิกถอนไม่ได้จริง เพราะสำเนายังอยู่ในบันทึกที่ลบไม่ได้ตลอดไป.
+      */
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.issued',
+          companyId: owner,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: minted.row.id,
+          after: {
+            prefix: minted.row.prefix,
+            name: minted.row.name,
+            sourceCode: minted.row.sourceCode,
+            scopes,
+            expiresAt: expiresAt?.toISOString() ?? null,
+            integrationId,
+          },
+        },
+        { prisma },
+      );
+      return minted;
     });
 
     return { ...toRow(row), key };
@@ -148,8 +169,12 @@ export class ApiKeyAdminService {
    * ค่าเต็มของกุญแจ — ถอดจาก `keyEnc` ทุกครั้งที่ดูลง audit (ไม่มีตัวกุญแจในนั้น).
    * ใบที่ออกก่อนมี `keyEnc` ดูไม่ได้ ต้องออกใหม่.
    */
-  async reveal(id: string, actor: Principal): Promise<{ key: string }> {
-    const found = await this.owned(id, actor);
+  async reveal(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<{ key: string }> {
+    const found = await this.owned(id, actor, owner);
     const key = found.keyEnc ? openSecret(found.keyEnc, this.sealKey()) : null;
     if (!key) {
       throw new AppError(
@@ -162,7 +187,7 @@ export class ApiKeyAdminService {
 
     await this.audit.record({
       eventType: 'admin.api_key.revealed',
-      companyId: actor.activeCompanyId,
+      companyId: owner,
       ...auditActor(actor),
       resourceType: 'api_key',
       resourceId: id,
@@ -175,8 +200,12 @@ export class ApiKeyAdminService {
    * ออกใบใหม่แทนใบเดิม — ชื่อ ช่องทาง สิทธิ์ อายุ ระบบภายนอกเหมือนเดิม และเพิกถอน
    * ใบเดิมในรายการเดียวกัน: ใบเดิมใช้ไม่ได้ตั้งแต่คำขอถัดไป.
    */
-  async rotate(id: string, actor: Principal): Promise<IssuedApiKeyDto> {
-    const found = await this.owned(id, actor);
+  async rotate(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<IssuedApiKeyDto> {
+    const found = await this.owned(id, actor, owner);
     if (statusOf(found) !== 'active') {
       throw new AppError(
         'UNPROCESSABLE',
@@ -194,6 +223,7 @@ export class ApiKeyAdminService {
           integrationId: found.integrationId,
         },
         actor,
+        owner,
         { prisma },
       );
       await this.keys.update(
@@ -210,7 +240,7 @@ export class ApiKeyAdminService {
       await this.audit.record(
         {
           eventType: 'admin.api_key.rotated',
-          companyId: actor.activeCompanyId,
+          companyId: owner,
           ...auditActor(actor),
           resourceType: 'api_key',
           resourceId: minted.row.id,
@@ -246,8 +276,9 @@ export class ApiKeyAdminService {
     id: string,
     dto: UpdateApiKeyScopesDto,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<ApiKeyRowDto> {
-    const found = await this.owned(id, actor);
+    const found = await this.owned(id, actor, owner);
 
     if (found.revokedAt || !found.active) {
       throw new AppError(
@@ -258,19 +289,29 @@ export class ApiKeyAdminService {
 
     const scopes = assertIssuable(dto.scopes);
 
-    const row = (await this.keys.update({
-      where: { id },
-      data: { scopes },
-    })) as ApiKeyRow;
+    const row = await this.transactions.execute(async (prisma) => {
+      const updated = (await this.keys.update(
+        { where: { id }, data: { scopes } },
+        { prisma },
+      )) as ApiKeyRow;
 
-    await this.audit.record({
-      eventType: 'admin.api_key.scopes_changed',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: id,
-      before: { prefix: found.prefix, name: found.name, scopes: found.scopes },
-      after: { prefix: found.prefix, name: found.name, scopes },
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.scopes_changed',
+          companyId: owner,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: id,
+          before: {
+            prefix: found.prefix,
+            name: found.name,
+            scopes: found.scopes,
+          },
+          after: { prefix: found.prefix, name: found.name, scopes },
+        },
+        { prisma },
+      );
+      return updated;
     });
 
     return toRow(row);
@@ -283,37 +324,54 @@ export class ApiKeyAdminService {
    * ไม่มีปุ่มลบ. แถวที่เพิกถอนแล้วยังอยู่เพราะคำถามที่จะถูกถามจริงคือ "กุญแจที่
    * เคยอยู่บนเว็บฟอร์มตัวเก่าถูกปิดไปเมื่อไหร่ ใครปิด" — ลบทิ้งแล้วไม่มีคำตอบ.
    */
-  async revoke(id: string, actor: Principal): Promise<ApiKeyRowDto> {
-    const found = await this.owned(id, actor);
+  async revoke(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<ApiKeyRowDto> {
+    const found = await this.owned(id, actor, owner);
 
     if (found.revokedAt) return toRow(found);
 
-    const row = (await this.keys.update({
-      where: { id },
-      data: {
-        active: false,
-        revokedAt: new Date(),
-        revokedBy: actor.userId,
-      },
-    })) as ApiKeyRow;
+    const row = await this.transactions.execute(async (prisma) => {
+      const revoked = (await this.keys.update(
+        {
+          where: { id },
+          data: {
+            active: false,
+            revokedAt: new Date(),
+            revokedBy: actor.userId,
+          },
+        },
+        { prisma },
+      )) as ApiKeyRow;
 
-    await this.audit.record({
-      eventType: 'admin.api_key.revoked',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: id,
-      before: { prefix: found.prefix, name: found.name, active: true },
-      after: { prefix: found.prefix, name: found.name, active: false },
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.revoked',
+          companyId: owner,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: id,
+          before: { prefix: found.prefix, name: found.name, active: true },
+          after: { prefix: found.prefix, name: found.name, active: false },
+        },
+        { prisma },
+      );
+      return revoked;
     });
 
     return toRow(row);
   }
 
   /** SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้. */
-  private async owned(id: string, actor: Principal): Promise<ApiKeyRow> {
+  private async owned(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<ApiKeyRow> {
     const found = (await this.keys.findFirst({
-      where: { id, companyId: actor.activeCompanyId },
+      where: { id, companyId: owner },
     })) as ApiKeyRow | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
     return found;
@@ -325,6 +383,7 @@ export class ApiKeyAdminService {
       'name' | 'sourceCode' | 'scopes' | 'expiresAt' | 'integrationId'
     >,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
     option?: TxOption,
   ): Promise<{ key: string; row: ApiKeyRow }> {
     const key = API_KEY_PREFIX + randomBytes(32).toString('base64url');
@@ -335,7 +394,7 @@ export class ApiKeyAdminService {
           prefix: key.slice(0, DISPLAY_LENGTH),
           keyHash: createHash('sha256').update(key).digest('hex'),
           keyEnc: sealSecret(key, this.sealKey()),
-          companyId: actor.activeCompanyId,
+          companyId: owner,
           createdBy: actor.userId,
         },
       },
@@ -344,8 +403,8 @@ export class ApiKeyAdminService {
     return { key, row };
   }
 
-  private sealKey(): string {
-    const secret = this.config.get<string>('projectConfig.secret');
+  private sealKey(): SecretKeyring {
+    const secret = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!secret) throw new Error('CONFIG_SECRET_KEY is not set');
     return secret;
   }

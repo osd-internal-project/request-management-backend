@@ -49,7 +49,7 @@ function harness(options: { found?: Record<string, unknown> | null } = {}) {
     {} as never,
     {} as never,
     types as never,
-    {} as never,
+    { unitOfMember: jest.fn(() => Promise.resolve('unit-sales')) } as never,
     {} as never,
     {} as never,
     {} as never,
@@ -83,6 +83,8 @@ describe('CD-66 requests from customer channels', () => {
     );
     expect(h.created[0]).toMatchObject({
       requesterId: 'desk-1',
+      // SCOPE-02 — the requester's group is snapshot, as on the screen path
+      requesterOrgUnitId: 'unit-sales',
       companyId: 'osd',
       channel: 'web_form',
       contactName: 'คุณเอ',

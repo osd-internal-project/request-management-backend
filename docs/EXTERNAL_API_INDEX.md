@@ -109,6 +109,9 @@
 | PATCH | `/crm/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) ของ Lead | integration.crm.lead.manage | crm.lead.manage |
 | POST | `/crm/leads/{id}/activities` | ลงกิจกรรมของ Lead | integration.crm.lead.manage | crm.lead.manage |
 | PATCH | `/crm/leads/{id}/activities/{activityId}` | แก้กิจกรรม หรือติ๊กเสร็จ | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/leads/{id}/contacts` | เพิ่มผู้ติดต่อของ Lead | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/leads/{id}/contacts/{contactId}` | แก้ผู้ติดต่อของ Lead | integration.crm.lead.manage | crm.lead.manage |
+| DELETE | `/crm/leads/{id}/contacts/{contactId}` | ลบผู้ติดต่อของ Lead | integration.crm.lead.manage | crm.lead.manage |
 | POST | `/crm/leads/{id}/disqualify` | คัด Lead ออกพร้อมเหตุผล | integration.crm.lead.manage | crm.lead.manage |
 | POST | `/crm/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย | integration.crm.lead.manage | crm.lead.manage |
 | GET | `/crm/opportunities` | ค้นโอกาสการขาย | integration.crm.sales.read | crm.sales.read |
@@ -152,6 +155,7 @@
 | GET | `/crm/quotations/{id}` | รายละเอียดใบเสนอราคา | integration.crm.sales.read | crm.sales.read |
 | PATCH | `/crm/quotations/{id}` | แก้ใบเสนอราคา | integration.crm.sales.manage | crm.sales.manage |
 | GET | `/crm/quotations/{id}/print` | ใบเสนอราคาฉบับพิมพ์ส่งลูกค้า | integration.crm.sales.read | crm.sales.read |
+| GET | `/crm/quotations/{id}/pdf` | ใบเสนอราคาเป็นไฟล์ PDF ตามแบบฟอร์มบริษัท | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/quotations/{id}/submit` | ยื่นใบเสนอราคาขออนุมัติราคา | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/quotations/{id}/send` | ส่งใบเสนอราคาให้ลูกค้า | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/quotations/{id}/accept` | บันทึกว่าลูกค้าตอบรับ | integration.crm.sales.manage | crm.sales.manage |
@@ -172,6 +176,8 @@
 | POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
 | POST | `/crm/ai/leads/{id}/emails` | ส่งอีเมลขอบคุณ (+ proposal) ถึงผู้ติดต่อของ Lead | integration.crm.email.send, integration.crm.lead.read.all |  |
 | GET | `/crm/ai/emails/{id}` | อ่านอีเมลหนึ่งฉบับ — ผลจัดประเภท (intent) และข้อความ | integration.crm.email.read, integration.crm.lead.read.all |  |
+| POST | `/crm/ai/emails/{id}/assessment` | ประเมินคำตอบของลูกค้าก่อนออกใบเสนอราคา — requirement ครบหรือยัง | integration.crm.email.read, integration.crm.lead.read.all |  |
+| POST | `/crm/ai/emails/{id}/requirement-request` | ส่งอีเมลถาม requirement ที่ยังขาด ตอบในเธรดเดิมของลูกค้า | integration.crm.email.send, integration.crm.lead.read.all |  |
 | POST | `/crm/ai/opportunities/{id}/quotations` | ร่าง + ยื่นใบเสนอราคาจากราคามาตรฐาน | integration.crm.quotation.create, integration.crm.sales.read.all |  |
 | POST | `/crm/ai/quotations/{id}/email` | ส่งใบเสนอราคา (PDF) ให้ลูกค้าในเธรดเดิม แล้วเปลี่ยนเป็น "ส่งแล้ว" | integration.crm.email.send, integration.crm.sales.read.all |  |
 | POST | `/crm/ai/quotations/{id}/accept` | บันทึกว่าลูกค้ายืนยันใบเสนอราคา / ออก PO — งานของเซลล์จบที่นี่ | integration.crm.quotation.accept, integration.crm.sales.read.all |  |

@@ -8,6 +8,8 @@ import {
   PrincipalCompany,
 } from '@request-management/share';
 import type { User } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AuditEvent } from '../audit/audit-events';
 import { OrgService } from '../org/org.service';
 import { PolicyService } from '../policy/policy.service';
 import { RolesService } from '../roles/roles.service';
@@ -57,6 +59,7 @@ export class PrincipalService {
     private readonly roles: RolesService,
     private readonly policy: PolicyService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   async resolve(
@@ -80,6 +83,12 @@ export class PrincipalService {
     }
 
     const user = await this.provision(payload, keycloakRoles);
+
+    // Keycloak still authenticates a suspended person — the realm is shared, so
+    // switching them off there is not ours to do. This is where it bites.
+    if (user.status === 'SUSPENDED') {
+      throw new AppError('USER_SUSPENDED', 'บัญชีนี้ถูกปิดการใช้งาน');
+    }
 
     return this.principalFor(user, requestedCompanyId);
   }
@@ -146,13 +155,22 @@ export class PrincipalService {
     user: User,
     requestedCompanyId?: string,
   ): Promise<Principal> {
-    const memberships = await this.org.companiesForUser(user.id);
+    const [memberships, systemPermissions] = await Promise.all([
+      this.org.companiesForUser(user.id),
+      this.roles.systemPermissionsOf(user.id),
+    ]);
     const companies: PrincipalCompany[] = memberships.map((membership) => ({
       id: membership.company.id,
       name: membership.company.name,
       docPrefix: membership.company.docPrefix,
       isPrimary: membership.isPrimary,
     }));
+    const entered = await this.enteredCompany(
+      companies,
+      requestedCompanyId ?? user.lastCompanyId ?? undefined,
+      systemPermissions,
+    );
+    if (entered) companies.push(entered);
 
     const activeCompanyId = pickActiveCompany(
       companies,
@@ -165,12 +183,25 @@ export class PrincipalService {
     // principal that can read /auth/me and nothing else, so the frontend can
     // render the "waiting for assignment" state instead of a broken shell.
     if (!activeCompanyId) {
-      return this.pendingPrincipal(user, companies);
+      return this.pendingPrincipal(user, companies, systemPermissions);
+    }
+
+    if (entered && activeCompanyId === entered.id) {
+      return this.enteredPrincipal(
+        user,
+        companies,
+        entered.id,
+        systemPermissions,
+      );
     }
 
     // Keycloak is login only: roles come from grants made in this app, never from token roles.
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
-    const permissions = RolesService.permissionsOf(userRoles);
+    const permissions = await this.roles.effectivePermissions(
+      user.id,
+      activeCompanyId,
+      userRoles,
+    );
 
     /*
       The levels the caller's roles carry, as they stand right now. Read off
@@ -224,6 +255,7 @@ export class PrincipalService {
       scopedByPermission: scoped.byPermission,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
+      systemPermissions,
       sensitiveFieldsVisible,
       sensitiveFieldsAll,
       /*
@@ -237,11 +269,11 @@ export class PrincipalService {
   }
 
   /** AUTH-04: create the local profile on first login, from token claims only. */
-  private provision(
+  private async provision(
     payload: KeycloakJwtPayload,
     keycloakRoles: readonly string[],
   ): Promise<User> {
-    return this.users.upsertFromClaims({
+    const { user, relinkedFrom } = await this.users.upsertFromClaims({
       keycloakRoles,
       keycloakId: payload.sub,
       username: payload.preferred_username,
@@ -256,11 +288,95 @@ export class PrincipalService {
           ? payload['family_name']
           : null,
     });
+
+    if (relinkedFrom) {
+      await this.audit.record({
+        eventType: AuditEvent.IDENTITY_RELINKED,
+        companyId: user.primaryCompanyId,
+        actorId: user.id,
+        actorUsername: user.username,
+        resourceType: 'user',
+        resourceId: user.id,
+        before: { keycloakId: relinkedFrom },
+        after: { keycloakId: user.keycloakId },
+      });
+    }
+
+    return user;
+  }
+
+  /**
+   * P6 (Q2): a company the person is not a member of, opened through
+   * `system.tenant.read`. Only an active company, and only when asked for.
+   */
+  private async enteredCompany(
+    companies: readonly PrincipalCompany[],
+    candidate: string | undefined,
+    systemPermissions: readonly Permission[],
+  ): Promise<PrincipalCompany | null> {
+    if (!candidate || !systemPermissions.includes('system.tenant.read')) {
+      return null;
+    }
+    if (companies.some((company) => company.id === candidate)) return null;
+
+    const company = await this.org.findCompany(candidate);
+    if (!company?.active) return null;
+    return {
+      id: company.id,
+      name: company.name,
+      docPrefix: company.docPrefix,
+      isPrimary: false,
+      via: 'system',
+    };
+  }
+
+  /**
+   * Acting in an entered company with its `admin` role — the SCOPE-03
+   * exception in AGENTS.md. The person's own unit belongs to another
+   * company, so nothing on that company's chart is theirs.
+   */
+  private async enteredPrincipal(
+    user: User,
+    companies: readonly PrincipalCompany[],
+    companyId: string,
+    systemPermissions: readonly Permission[],
+  ): Promise<Principal> {
+    const permissions = await this.roles.adminPermissionsOf(companyId);
+    const [sensitiveFieldsVisible, sensitiveFieldsAll] = await Promise.all([
+      this.policy.resolveVisibleSensitiveFields(permissions),
+      this.policy.listAllSensitiveFieldKeys(),
+    ]);
+    return {
+      userId: user.id,
+      keycloakId: user.keycloakId,
+      username: user.username,
+      displayName: user.displayName,
+      email: user.email,
+      companies,
+      activeCompanyId: companyId,
+      orgUnitId: null,
+      supervisorUserId: null,
+      ledUnitIds: [],
+      levelUnitIds: [],
+      scopedUnitIds: [],
+      scopedActUnitIds: [],
+      scopedUserIds: [],
+      scopedActUserIds: [],
+      scopedByPermission: {},
+      roles: ['admin'],
+      permissions,
+      systemPermissions,
+      sensitiveFieldsVisible,
+      sensitiveFieldsAll,
+      isServiceAccount: false,
+      pendingOrgAssignment: false,
+    };
   }
 
   private pendingPrincipal(
     user: User,
     companies: readonly PrincipalCompany[],
+    systemPermissions: readonly Permission[],
   ): Principal {
     return {
       userId: user.id,
@@ -281,6 +397,7 @@ export class PrincipalService {
       scopedByPermission: {},
       roles: [],
       permissions: [] as Permission[],
+      systemPermissions,
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       // A `User` row is always a person — see `principalFor`.
@@ -294,11 +411,19 @@ export class PrincipalService {
    * Permissions are the forwarded API key `scopes`, and only on the integration
    * client's own token: token roles grant nothing, and the realm is shared.
    */
-  private serviceAccountPrincipal(
+  private async serviceAccountPrincipal(
     payload: KeycloakJwtPayload,
     keyScopes: readonly string[],
-  ): Principal {
+  ): Promise<Principal> {
     const username = payload.preferred_username ?? 'service-account';
+    const permissions = this.isIntegrationClient(username)
+      ? keyScopes.filter(isPermission)
+      : [];
+    // A key reading as its company (no person) must still be masked (SCOPE-04).
+    const [sensitiveFieldsVisible, sensitiveFieldsAll] = await Promise.all([
+      this.policy.resolveVisibleSensitiveFields(permissions),
+      this.policy.listAllSensitiveFieldKeys(),
+    ]);
 
     return {
       userId: payload.sub,
@@ -318,13 +443,12 @@ export class PrincipalService {
       scopedActUserIds: [],
       scopedByPermission: {},
       roles: [],
-      permissions: this.isIntegrationClient(username)
-        ? keyScopes.filter(isPermission)
-        : [],
-      sensitiveFieldsVisible: [],
-      sensitiveFieldsAll: [],
+      permissions,
+      sensitiveFieldsVisible,
+      sensitiveFieldsAll,
       isServiceAccount: true,
       pendingOrgAssignment: false,
+      systemPermissions: [],
     };
   }
 

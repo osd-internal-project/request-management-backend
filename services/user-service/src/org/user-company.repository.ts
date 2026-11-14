@@ -36,6 +36,15 @@ export class UserCompanyRepository extends BaseRepository<
     ) as Promise<MembershipWithCompany[]>;
   }
 
+  /** Every company the user belongs to, active or not. */
+  async companyIdsOf(userId: string, option?: TxOption): Promise<string[]> {
+    const rows = await this.findMany(
+      { where: { userId }, select: { companyId: true } },
+      option,
+    );
+    return rows.map((row) => row.companyId);
+  }
+
   /** Replaces a user's memberships wholesale; the caller supplies the tx. */
   async replaceForUser(
     userId: string,
@@ -60,5 +69,33 @@ export class UserCompanyRepository extends BaseRepository<
         },
       });
     }
+  }
+
+  /**
+   * Takes a person out of one company: its role grants, the membership, and
+   * any primary / last / placement that pointed there. Other companies stay.
+   * The caller supplies the tx.
+   */
+  async detachFromCompany(
+    userId: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<void> {
+    const client = option?.prisma ?? this.prisma;
+
+    await client.userRole.deleteMany({ where: { userId, companyId } });
+    await client.userCompany.deleteMany({ where: { userId, companyId } });
+    await client.user.updateMany({
+      where: { id: userId, primaryCompanyId: companyId },
+      data: { primaryCompanyId: null },
+    });
+    await client.user.updateMany({
+      where: { id: userId, lastCompanyId: companyId },
+      data: { lastCompanyId: null },
+    });
+    await client.user.updateMany({
+      where: { id: userId, orgUnit: { companyId } },
+      data: { orgUnitId: null },
+    });
   }
 }

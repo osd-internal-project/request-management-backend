@@ -70,11 +70,19 @@ jobs:
 
   build-and-push:
     needs: version
-    runs-on: ubuntu-latest
+    # Built on the labs VM: from a US GitHub runner the ~400MB node_modules
+    # layer stalled mid-push to SWR (#103–#107).
+    runs-on: [self-hosted, labs-vm]
+
+    # A stuck SWR push otherwise holds the run for the 6-hour default.
+    # timeout-minutes: 20
 
     strategy:
       # One service failing to build must not hide whether the others did.
       fail-fast: false
+      # One push to SWR at a time: with all four in parallel, core and external
+      # sat in "pushing layers" for 30+ minutes while the other two finished.
+      max-parallel: 1
       matrix:
         service:
           [user-service, core-service, external-service, run-number-service]
@@ -83,13 +91,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Build context is the repo root: every workspace manifest has to be in
-      # it before yarn can link the workspaces. See the header of the Dockerfile.
-      - name: Build Docker Image
+      # Read-only: how this VM resolves names (#110 timed out on 127.0.0.53).
+      - name: DNS Diagnostics
         run: |
-          docker build --platform linux/amd64 \
-            -t request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }} \
-            -f services/${{ matrix.service }}/Dockerfile .
+          resolvectl status 2>&1 | grep -E "Current DNS|DNS Servers|Fallback" || true
+          grep -v '^#' /etc/resolv.conf || true
+          for S in "" 1.1.1.1 8.8.8.8 192.168.31.1; do
+            if [ -n "$S" ]; then R=$(dig +short +time=2 +tries=1 github.com @"$S" 2>&1 | head -1)
+            else R=$(dig +short +time=2 +tries=1 github.com 2>&1 | head -1); fi
+            echo "dig github.com ${S:-via-resolver}: ${R:-NO ANSWER}"
+          done
+          ping -c2 -W2 1.1.1.1 2>&1 | tail -1 || true
 
       # --password-stdin, not -p: with -p the login key is visible in the
       # runner's process list and docker prints a warning about it.
@@ -99,21 +111,28 @@ jobs:
             | docker login -u "${{ secrets.HUAWEI_REGISTRY_USERNAME }}" \
                 --password-stdin "${{ env.REGISTRY }}"
 
-      - name: Tag and Push Docker Image
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          REMOTE=${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}
-          docker tag "${LOCAL}" "${REMOTE}"
-          docker push "${REMOTE}"
-          echo "- \`${REMOTE}\`" >> "$GITHUB_STEP_SUMMARY"
+      # The VM's own daemon, not a buildkit container: a container falls back to
+      # 8.8.8.8, which this network does not answer (#108). The daemon keeps its
+      # layer cache between runs, so no GitHub Actions cache is needed.
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
-      - name: Cleanup Docker Images
-        if: always()
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          docker rmi "${LOCAL}" || true
-          docker rmi "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}" || true
-          docker image prune -f
+      # Build context is the repo root: every workspace manifest has to be in
+      # it before yarn can link the workspaces. See the header of the Dockerfile.
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64
+          # RUN steps (yarn install) resolve through the host, as the deploy job's pull does.
+          network: host
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
+
+      - name: Record Image
+        run: echo "- \`${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     needs: [version, build-and-push]

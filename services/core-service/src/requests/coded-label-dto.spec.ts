@@ -1,6 +1,10 @@
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
-import { ReturnRequestDto, UpdateRequestTypeDto } from './dto/request.dto';
+import {
+  CreateRequestTypeDto,
+  ReturnRequestDto,
+  UpdateRequestTypeDto,
+} from './dto/request.dto';
 
 /** Every failing field, the way `ValidationPipe` would collect them. */
 function fieldsRejecting(dto: object): string[] {
@@ -104,5 +108,27 @@ describe('REQ-04 return names one code, not a list', () => {
     });
 
     expect(fieldsRejecting(dto)).toContain('reason_code');
+  });
+});
+
+/** A2's "เพิ่มประเภทคำขอ" refused catalog-style codes such as HR-S-001 (12 พ.ย. 2569). */
+describe('A2 can create a type whose code carries a hyphen', () => {
+  const codeRejected = (code: string) =>
+    fieldsRejecting(
+      plainToInstance(CreateRequestTypeDto, {
+        code,
+        name: 'HR Request Careers',
+        form_schema: { type: 'object', properties: {} },
+      }),
+    ).includes('code');
+
+  it('accepts HR-S-001 and HR_CAREERS', () => {
+    expect(codeRejected('HR-S-001')).toBe(false);
+    expect(codeRejected('HR_CAREERS')).toBe(false);
+  });
+
+  it('still refuses lower case and spaces', () => {
+    expect(codeRejected('hr-s-001')).toBe(true);
+    expect(codeRejected('HR S 001')).toBe(true);
   });
 });

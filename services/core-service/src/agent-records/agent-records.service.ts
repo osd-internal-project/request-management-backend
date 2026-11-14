@@ -29,11 +29,13 @@ import {
   type AgentRecordStatus,
 } from './agent-actions';
 import { AgentRecordRepository } from './agent-record.repository';
+import { LeadFilesService, MAX_LEAD_FILE_BYTES } from '../crm/lead-files.service';
 import type {
   CompleteAgentRecordDto,
   FindLeadsDto,
   ListAgentRecordsDto,
   ResearchLeadDto,
+  WriteProposalDto,
 } from './dto/agent-record.dto';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
@@ -47,6 +49,10 @@ export interface AgentRecordStamp {
   id: string;
   status: string;
   updatedAt: Date;
+}
+
+function isJsonObject(value: Prisma.JsonValue): value is Prisma.JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 const FINISHED: readonly string[] = [
@@ -71,6 +77,7 @@ export class AgentRecordsService {
     private readonly transactions: PrismaTransactionService,
     private readonly vuvagent: VuvagentClient,
     private readonly leads: LeadsService,
+    private readonly leadFiles: LeadFilesService,
   ) {}
 
   findLeads(dto: FindLeadsDto, actor: Principal) {
@@ -87,11 +94,32 @@ export class AgentRecordsService {
     );
   }
 
+  async suggestProducts(leadId: string, actor: Principal) {
+    await this.leads.findOne(leadId, actor);
+    return this.start('lead.suggest_products', { lead_id: leadId }, actor);
+  }
+
+  async writeProposal(
+    leadId: string,
+    dto: WriteProposalDto,
+    actor: Principal,
+  ) {
+    await this.leads.findOne(leadId, actor);
+    return this.start(
+      'lead.write_proposal',
+      { lead_id: leadId, product: dto.product.trim() },
+      actor,
+    );
+  }
+
   async list(actor: Principal, query: ListAgentRecordsDto) {
     const { skip, take } = toSkipTake(query);
     const filters: Prisma.AgentRecordWhereInput = {};
     if (query.status) filters.status = query.status;
     if (query.action) filters.action = query.action;
+    if (query.lead_id) {
+      filters.input = { path: ['lead_id'], equals: query.lead_id };
+    }
     // filters narrow inside the readable set, never widen it
     const where: Prisma.AgentRecordWhereInput = {
       AND: [this.visibleWhere(actor), filters],
@@ -230,7 +258,7 @@ export class AgentRecordsService {
     principal: Principal,
     companyId: string,
   ) {
-    return this.transactions.execute(async (tx) => {
+    const finished = await this.transactions.execute(async (tx) => {
       const before = await tx.agentRecord.findFirst({
         where: { id, companyId },
         select: { status: true, timedOutAt: true },
@@ -274,6 +302,64 @@ export class AgentRecordsService {
         { prisma: tx },
       );
       return tx.agentRecord.findFirst({ where: { id } });
+    });
+
+    // after commit: a repeated callback got 409 above, so the file is fetched once
+    if (finished?.action === 'lead.write_proposal' && dto.status === 'done') {
+      return this.storeProposal(finished, principal);
+    }
+    return finished;
+  }
+
+  /**
+   * Keeps the agent's .docx as the Lead's proposal — its link expires in 7 days.
+   * The job stays `done` either way; what happened is added to `result`.
+   */
+  private async storeProposal(
+    record: {
+      id: string;
+      companyId: string;
+      input: Prisma.JsonValue;
+      result: Prisma.JsonValue;
+    },
+    principal: Principal,
+  ) {
+    const result = isJsonObject(record.result) ? record.result : {};
+    const input = isJsonObject(record.input) ? record.input : {};
+    let outcome: Prisma.InputJsonObject;
+    try {
+      if (typeof result.proposal_url !== 'string') {
+        throw new Error('ผลลัพธ์ไม่มี proposal_url');
+      }
+      if (typeof input.lead_id !== 'string') {
+        throw new Error('งานนี้ไม่มี lead_id');
+      }
+      const file = await this.vuvagent.download(
+        record.companyId,
+        'lead.write_proposal',
+        result.proposal_url,
+        MAX_LEAD_FILE_BYTES,
+      );
+      const stored = await this.leadFiles.upload(
+        input.lead_id,
+        'proposal',
+        {
+          originalname: file.fileName,
+          mimetype: file.mimeType,
+          size: file.buffer.length,
+          buffer: file.buffer,
+        },
+        principal,
+      );
+      outcome = { proposal_file_id: stored.id };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`store proposal of ${record.id} failed: ${message}`);
+      outcome = { proposal_file_error: message };
+    }
+    return this.records.update({
+      where: { id: record.id },
+      data: { result: { ...result, ...outcome } },
     });
   }
 

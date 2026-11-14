@@ -256,7 +256,8 @@ export class UpdateCustomerDto {
 export class ListCustomersQueryDto extends PageQueryDto {
   @ApiPropertyOptional({
     example: 'ตัวอย่าง',
-    description: 'ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี',
+    description:
+      'ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า เลขผู้เสียภาษี หรือผู้ติดต่อ (ชื่อ อีเมล เบอร์ LINE id) หรือที่อยู่ (ถนน แขวง เขต จังหวัด รหัสไปรษณีย์)',
   })
   @IsOptional()
   @IsString()
@@ -690,6 +691,11 @@ export class UpdateCrmConfigDto {
   @IsString()
   @MaxLength(100)
   letterhead_phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  letterhead_fax?: string;
 
   @IsOptional()
   @IsString()

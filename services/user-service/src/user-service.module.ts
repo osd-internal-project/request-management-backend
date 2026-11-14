@@ -38,6 +38,7 @@ import configs from './configs';
  * All four are global, so ROLE-01's "no endpoint is open by default" is a
  * property of the wiring rather than of anyone's diligence.
  */
+import { SystemModule } from './system/system.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -55,6 +56,7 @@ import configs from './configs';
     KeycloakAdminModule,
     PrincipalModule,
     AuthModule,
+    SystemModule,
   ],
   controllers: [UserServiceController],
   providers: [

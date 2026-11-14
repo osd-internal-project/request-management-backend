@@ -32,6 +32,19 @@ export class OrgUnitRepository extends BaseRepository<
     return client.orgUnit;
   }
 
+  /** The unit this person sits in within `companyId`, or null when none there. */
+  async unitOfMember(
+    userId: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<string | null> {
+    const unit = (await this.findFirst(
+      { where: { companyId, members: { some: { id: userId } } }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+    return unit?.id ?? null;
+  }
+
   /**
    * A group and every group above it, nearest first.
    *

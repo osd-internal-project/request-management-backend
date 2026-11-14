@@ -45,7 +45,7 @@ export class RoleRepository extends BaseRepository<PrismaService['role']> {
   ): Promise<RoleWithHolderCount[]> {
     return this.findMany(
       {
-        where: { OR: [{ companyId }, { companyId: null }] },
+        where: { level: 'COMPANY', OR: [{ companyId }, { companyId: null }] },
         include: {
           permissions: true,
           // Counted in the same query rather than one `count` per role: the
@@ -106,6 +106,35 @@ export class RoleRepository extends BaseRepository<PrismaService['role']> {
       data,
       include: { permissions: true },
     });
+  }
+
+  /** `system.*` ที่คนนี้ได้จาก role ระบบที่ยังใช้งานอยู่ — ไม่ผูกบริษัท. */
+  async systemPermissionCodesOf(
+    userId: string,
+    option?: TxOption,
+  ): Promise<string[]> {
+    const client = option?.prisma ?? this.prisma;
+    const rows = await client.rolePermission.findMany({
+      where: {
+        role: {
+          level: 'SYSTEM',
+          active: true,
+          systemUsers: { some: { userId } },
+        },
+      },
+      select: { permissionCode: true },
+      distinct: ['permissionCode'],
+    });
+    return rows.map((row) => row.permissionCode);
+  }
+
+  /** What a system admin acts with in a company they entered (P6): its `admin` role. */
+  async adminPermissionCodesOf(companyId: string): Promise<string[]> {
+    const role = await this.prisma.role.findFirst({
+      where: { companyId, code: 'admin', level: 'COMPANY', active: true },
+      select: { permissions: { select: { permissionCode: true } } },
+    });
+    return role?.permissions.map((row) => row.permissionCode) ?? [];
   }
 
   countUsers(roleId: string, option?: TxOption): Promise<number> {

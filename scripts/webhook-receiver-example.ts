@@ -164,7 +164,8 @@ async function sendThroughRealSender(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo; // listen() on a port always yields AddressInfo
 
-  const configKey = 'self-check-config-key';
+  const { keyringFromEnv } = await import('../libs/share/src/secrets/keyring');
+  const configKey = keyringFromEnv({ CONFIG_SECRET_KEY: 'self-check-config-key' });
   const updates: { data: Record<string, unknown> }[] = [];
   const subscriptions = {
     findUnique: async () => ({

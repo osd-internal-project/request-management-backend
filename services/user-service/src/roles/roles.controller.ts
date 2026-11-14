@@ -21,6 +21,7 @@ import type { Principal } from '@request-management/share';
 import { RolesService } from './roles.service';
 import { KeycloakAdminService } from '../keycloak-admin/keycloak-admin.service';
 import {
+  CreatePermissionOverrideDto,
   CreateRoleDto,
   GrantRoleDto,
   ReplaceKeycloakMappingsDto,
@@ -108,9 +109,40 @@ export class RolesController {
     return this.rolesService.grantRole(
       userId,
       dto.role_id,
-      dto.company_id,
+      resolveTargetCompany(principal, dto.company_id),
       principal,
     );
+  }
+
+  /** P7 — per-person GRANT/REVOKE in the active company. */
+  @Get('users/:id/permission-overrides')
+  @Permissions('admin.role.manage')
+  listOverrides(
+    @Param('id') userId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.rolesService.listOverrides(userId, principal);
+  }
+
+  @Post('users/:id/permission-overrides')
+  @Permissions('admin.role.manage')
+  createOverride(
+    @Param('id') userId: string,
+    @Body() dto: CreatePermissionOverrideDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.rolesService.createOverride(userId, dto, principal);
+  }
+
+  @Delete('users/:id/permission-overrides/:overrideId')
+  @Permissions('admin.role.manage')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revokeOverride(
+    @Param('id') userId: string,
+    @Param('overrideId') overrideId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.rolesService.revokeOverride(userId, overrideId, principal);
   }
 
   @Delete('users/:id/roles/:roleId')

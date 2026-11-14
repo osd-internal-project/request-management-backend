@@ -33,7 +33,6 @@ export const AuditEvent = {
   ORG_USER_ASSIGNED: 'org.user.assigned',
 
   // SCOPE-01 / SCOPE-04 / SCOPE-05
-  SCOPE_RULE_UPDATED: 'scope.rule.updated',
   SENSITIVE_FIELD_RULE_UPDATED: 'scope.sensitive_field_rule.updated',
   SENSITIVE_FIELD_READ: 'scope.sensitive_field.read',
 
@@ -43,6 +42,24 @@ export const AuditEvent = {
   IDENTITY_ROLE_REVOKED: 'identity.role.revoked',
   IDENTITY_GROUP_JOINED: 'identity.group.joined',
   IDENTITY_GROUP_LEFT: 'identity.group.left',
+  // A login matched by username took over a row under a new Keycloak subject
+  // (the id24 realm move). Kept visible because the same path is a takeover.
+  IDENTITY_RELINKED: 'identity.relinked',
+
+  // P5 — ระดับระบบ (companyId null ใน audit ยกเว้นงานที่ลงบริษัทเดียว)
+  ORG_USER_REMOVED: 'org.user.removed',
+  SYSTEM_USER_SUSPENDED: 'system.user.suspended',
+  SYSTEM_USER_REACTIVATED: 'system.user.reactivated',
+  SYSTEM_USER_COMPANIES_REPLACED: 'system.user.companies.replaced',
+  SYSTEM_COMPANY_CREATED: 'system.company.created',
+  SYSTEM_COMPANY_UPDATED: 'system.company.updated',
+  SYSTEM_ROLE_GRANTED: 'system.role.granted',
+  SYSTEM_ROLE_REVOKED: 'system.role.revoked',
+  // P6 — one row per switch into a company the system admin is not a member of (Q3)
+  SYSTEM_TENANT_ENTERED: 'system.tenant.entered',
+  // P7
+  PERMISSION_OVERRIDE_SET: 'role.permission_override.set',
+  PERMISSION_OVERRIDE_REVOKED: 'role.permission_override.revoked',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];

@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { parseCompanyDbs } from '@request-management/core-service';
 
 export default () => ({
@@ -201,11 +202,7 @@ export default () => ({
    */
   /** The key stored secrets (a company's mailbox) are encrypted with — same as core. */
   projectConfig: {
-    secret:
-      process.env.CONFIG_SECRET_KEY ??
-      (process.env.NODE_ENV === 'production'
-        ? undefined
-        : 'dev-project-config-secret'),
+    secret: keyringFromEnv(process.env),
   },
   mail: {
     mode: process.env.MAIL_MODE ?? 'off',

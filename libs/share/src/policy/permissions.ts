@@ -29,7 +29,12 @@ export const PERMISSIONS = {
     /** SCOPE-04: unmasks margin, discount, and other flagged fields. */
     'request.sensitive.read',
   ],
-  approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
+  approval: [
+    'approval.decide',
+    'approval.delegate',
+    'approval.history.read',
+    'approval.history.read.all',
+  ],
   crm: [
     'crm.customer.read',
     /**
@@ -112,6 +117,8 @@ export const PERMISSIONS = {
   ],
   user: ['user.read'],
   notification: ['notification.read'],
+  /** The phone workspace panel beside the content, for call-center agents. */
+  phone: ['phone.workspace.use'],
   audit: ['audit.read'],
   /**
    * CD-13 Legal (CD-161 คลังสัญญา, user decision 29 ก.ย. 2569) — the contract
@@ -119,7 +126,11 @@ export const PERMISSIONS = {
    * contracts with other counterparties. Confidential ones are seen by
    * `manage`, their owner/creator and their access list only.
    */
-  legal: ['legal.contract.read', 'legal.contract.manage'],
+  legal: [
+    'legal.contract.read',
+    'legal.contract.read.all',
+    'legal.contract.manage',
+  ],
   /**
    * CD-14 ระบบลงนามอิเล็กทรอนิกส์ — `esign.manage` sends documents for
    * signing, follows and cancels them, and keeps the signature layouts.
@@ -186,6 +197,7 @@ export const PERMISSIONS = {
     'service.asset.read',
     'service.asset.manage',
     'service.care.manage',
+    'service.care.read.all',
   ],
   /**
    * CD-20 Delivery — the delivery team's plans of what goes where and when
@@ -278,10 +290,31 @@ export const PERMISSIONS = {
      */
     'admin.chat-widget.manage',
     /**
+     * Each user's softphone extension and SIP password. Apart from the chat
+     * widget: it hands out credentials to a phone line, not a URL.
+     */
+    'admin.softphone.manage',
+    /**
      * Company documents (settings) — upload dated and general documents that
      * other systems download through `integration.document.read`.
      */
     'admin.document.manage',
+  ],
+  /**
+   * P5 ระดับระบบ — ถือได้เฉพาะ role `level = SYSTEM` ผ่าน `SystemUserRole` และตรวจด้วย
+   * `@SystemPermissions` เท่านั้น ไม่ปนกับสิทธิ์ของบริษัท และไม่มีคู่ `integration.*`.
+   */
+  system: [
+    'system.user.read',
+    /** ปิด/เปิดผู้ใช้ และเพิ่ม/ถอดบริษัทที่สังกัด — admin บริษัททำได้แค่ "เอาออกจากบริษัท". */
+    'system.user.manage',
+    'system.company.manage',
+    /** role กลาง (template) และ role ระบบ รวมการผูก role ระบบให้คน. */
+    'system.role.manage',
+    'system.integration.manage',
+    'system.audit.read',
+    /** อ่านข้อมูลบริษัทที่ไม่ได้เป็นสมาชิก (P6). */
+    'system.tenant.read',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
@@ -478,6 +511,13 @@ export const ACTING_SCOPES: readonly Permission[] = ALL_PERMISSIONS.filter(
     code.startsWith('integration.') &&
     isPermission(code.slice('integration.'.length)),
 );
+
+/** ระดับที่ role ต้องเป็นจึงถือสิทธิ์นี้ได้ — ตรงกับ enum `RoleLevel`. */
+export type PermissionLevel = 'COMPANY' | 'SYSTEM';
+
+export function permissionLevel(permission: Permission): PermissionLevel {
+  return permissionModule(permission) === 'system' ? 'SYSTEM' : 'COMPANY';
+}
 
 export function permissionType(permission: Permission): PermissionType {
   return permissionModule(permission) === 'integration' ? 'service' : 'human';

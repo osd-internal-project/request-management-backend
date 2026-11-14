@@ -1884,7 +1884,7 @@
             "name": "search",
             "required": false,
             "in": "query",
-            "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี",
+            "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า เลขผู้เสียภาษี หรือผู้ติดต่อ (ชื่อ อีเมล เบอร์ LINE id) หรือที่อยู่ (ถนน แขวง เขต จังหวัด รหัสไปรษณีย์)",
             "schema": {
               "example": "ตัวอย่าง",
               "type": "string"
@@ -6185,6 +6185,229 @@
         ]
       }
     },
+    "/api/v1/crm/leads/{id}/contacts": {
+      "post": {
+        "description": "Lead ที่ยังไม่มีผู้ติดต่อ: คนนี้เป็นผู้ติดต่อหลัก. is_primary=true = ตั้งเป็นหลักแทนคนเดิม. ตอบรายชื่อผู้ติดต่อทั้งหมดหลังแก้",
+        "operationId": "ExternalLeadsController_addContact",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มผู้ติดต่อของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.lead.manage"
+        ],
+        "x-acting-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/contacts/{contactId}": {
+      "patch": {
+        "description": "contactId = `primary` คือผู้ติดต่อหลัก. เขียนทั้งชุด — field ที่ไม่ส่ง = ว่าง. is_primary=true = ตั้งคนนี้เป็นผู้ติดต่อหลัก",
+        "operationId": "ExternalLeadsController_updateContact",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ผู้ติดต่อของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.lead.manage"
+        ],
+        "x-acting-permission": [
+          "crm.lead.manage"
+        ]
+      },
+      "delete": {
+        "description": "ลบผู้ติดต่อหลัก (`primary`): คนที่เพิ่มไว้ก่อนสุดขึ้นมาเป็นหลักแทน",
+        "operationId": "ExternalLeadsController_removeContact",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบผู้ติดต่อของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.lead.manage"
+        ],
+        "x-acting-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
     "/api/v1/crm/leads/{id}/disqualify": {
       "post": {
         "description": "ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้",
@@ -9671,6 +9894,70 @@
         "x-sensitive-resource": "quotation"
       }
     },
+    "/api/v1/crm/quotations/{id}/pdf": {
+      "get": {
+        "description": "ไฟล์เดียวกับที่แนบอีเมลถึงลูกค้า — ไม่มีต้นทุนและ margin; ใบที่ยังไม่อนุมัติมีลายน้ำ \"ร่าง\"",
+        "operationId": "ExternalQuotationsController_pdf",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาเป็นไฟล์ PDF ตามแบบฟอร์มบริษัท",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
     "/api/v1/crm/quotations/{id}/submit": {
       "post": {
         "description": "ทุกใบเปิดคำขออนุมัติราคา (ค่าตั้งต้น PRA) ผูกกับเวอร์ชันนี้ แล้วยื่นให้ อัตโนมัติ; ใบค้างที่ pending_approval จนคำขอได้ผล. margin ต่ำกว่าเกณฑ์ → ต้องมี reason. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
@@ -10421,7 +10708,7 @@
     },
     "/api/v1/crm/ai/leads/{id}": {
       "get": {
-        "description": "`email` `phone` `contactName` `contactPosition` เป็น null ถ้า key ไม่มี `integration.crm.lead.contact.read`",
+        "description": "`email` `phone` `contactName` `contactPosition` เป็น null และ `contacts` ว่าง ถ้า key ไม่มี `integration.crm.lead.contact.read`",
         "operationId": "ExternalLeadAiController_findOne",
         "parameters": [
           {
@@ -10812,6 +11099,102 @@
         ],
         "x-permission": [
           "integration.crm.email.read",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/emails/{id}/assessment": {
+      "post": {
+        "description": "อ่าน product / จำนวน / คำตอบของคำถามประจำ product (หน้า ชุดรายการของ Product) จากอีเมลขาเข้า รวมกับที่ลูกค้าเคยตอบ แล้วเก็บบน Lead (`intake_data.requirements`) · `outcome`: `ready` ออกใบเสนอราคาได้ · `ask` ยังขาด (`missing`) ให้ส่ง `emails/:id/requirement-request` · `no_solution` product ไม่มีชุดรายการ/ราคามาตรฐาน — พนักงานขายขอราคาจาก Pricing หรือ Solution จาก Pre-Sales · `handover` ถามครบ 2 ครั้งแล้วยังไม่ครบ — พนักงานขายติดต่อเอง (สองอย่างหลังแจ้งเจ้าของ Lead แล้ว)",
+        "operationId": "ExternalSalesAiController_assess",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประเมินคำตอบของลูกค้าก่อนออกใบเสนอราคา — requirement ครบหรือยัง",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.read",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/emails/{id}/requirement-request": {
+      "post": {
+        "description": "ถามเฉพาะข้อที่ `assessment` ล่าสุดตอบว่าขาด (`outcome = ask`; อย่างอื่น = 409) · ผู้รับ = ผู้ส่งอีเมลฉบับนั้น · คำตอบของลูกค้ากลับมาเป็น `crm.email.received` (interested) ให้ประเมินใหม่",
+        "operationId": "ExternalSalesAiController_requestRequirements",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRequirementRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งอีเมลถาม requirement ที่ยังขาด ตอบในเธรดเดิมของลูกค้า",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.send",
           "integration.crm.lead.read.all"
         ]
       }
@@ -17569,6 +17952,10 @@
             "maxLength": 100,
             "type": "string"
           },
+          "letterhead_fax": {
+            "maxLength": 100,
+            "type": "string"
+          },
           "letterhead_email": {
             "maxLength": 255,
             "type": "string"
@@ -18437,6 +18824,34 @@
           }
         }
       },
+      "LeadContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "position": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
       "DisqualifyLeadDto": {
         "type": "object",
         "properties": {
@@ -18753,6 +19168,22 @@
           },
           "payment_terms": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "delivery_time": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "warranty": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "customer_fax": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "seller_mobile": {
+            "maxLength": 50,
             "type": "string"
           },
           "note": {
@@ -19256,6 +19687,22 @@
             "maxLength": 500,
             "type": "string"
           },
+          "delivery_time": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "warranty": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "customer_fax": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "seller_mobile": {
+            "maxLength": 50,
+            "type": "string"
+          },
           "note": {
             "maxLength": 4000,
             "type": "string"
@@ -19587,6 +20034,20 @@
         "required": [
           "body"
         ]
+      },
+      "SendRequirementRequestDto": {
+        "type": "object",
+        "properties": {
+          "intro": {
+            "type": "string",
+            "description": "ย่อหน้าเปิด — ว่าง = ข้อความมาตรฐานของระบบ · รายการคำถามระบบเติมให้เสมอ",
+            "maxLength": 2000
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
       },
       "StandardQuotationItemDto": {
         "type": "object",

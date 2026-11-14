@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import {
   createCipheriv,
   createDecipheriv,
@@ -52,18 +53,24 @@ function keyOf(secret: string): Buffer {
   return createHash('sha256').update(`project-config:${secret}`).digest();
 }
 
-/** A secret, encrypted (AES-256-GCM); each sealing differs. */
-export function sealSecret(value: string, secret: string): string {
+const V2 = 'v2:';
+
+/** A secret, encrypted (AES-256-GCM) under the active key; `v2:<kid>:` names that key. */
+export function sealSecret(value: string, ring: SecretKeyring): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', keyOf(secret), iv);
+  const cipher = createCipheriv(
+    'aes-256-gcm',
+    keyOf(ring.keys[ring.active]),
+    iv,
+  );
   const body = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-  return [iv, cipher.getAuthTag(), body]
+  const sealed = [iv, cipher.getAuthTag(), body]
     .map((part) => part.toString('base64url'))
     .join('.');
+  return `${V2}${ring.active}:${sealed}`;
 }
 
-/** The secret back, or null when it cannot be read (another key, tampered). */
-export function openSecret(sealed: string, secret: string): string | null {
+function openWith(sealed: string, secret: string): string | null {
   try {
     const [iv, tag, body] = sealed
       .split('.')
@@ -76,6 +83,36 @@ export function openSecret(sealed: string, secret: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** The secret back, or null when it cannot be read (key retired or changed, tampered). */
+export function openSecret(
+  sealed: string,
+  ring: SecretKeyring | undefined,
+): string | null {
+  if (!ring) return null;
+  if (sealed.startsWith(V2)) {
+    const rest = sealed.slice(V2.length);
+    const at = rest.indexOf(':');
+    const key = at > 0 ? ring.keys[rest.slice(0, at)] : undefined;
+    return key ? openWith(rest.slice(at + 1), key) : null;
+  }
+  // Sealed before key ids: the old single key, else whichever key still opens it.
+  const candidates = [ring.legacy, ...Object.values(ring.keys)];
+  for (const secret of candidates) {
+    if (!secret) continue;
+    const opened = openWith(sealed, secret);
+    if (opened !== null) return opened;
+  }
+  return null;
+}
+
+/** True when a value is already sealed under the active key — what `secrets:reseal` skips. */
+export function sealedUnderActive(
+  sealed: string,
+  ring: SecretKeyring,
+): boolean {
+  return sealed.startsWith(`${V2}${ring.active}:`);
 }
 
 /** Does a value match a search? Secrets are never matched by value. */

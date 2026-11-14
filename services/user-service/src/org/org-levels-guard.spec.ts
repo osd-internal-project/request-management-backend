@@ -10,6 +10,7 @@ function actor(): Principal {
     userId: 'admin-1',
     username: 'admin',
     activeCompanyId: OSD,
+    companies: [{ id: OSD }],
     permissions: ['admin.org.manage'],
     // Only the fields these paths read. Double cast because a partial
     // principal no longer overlaps the full one enough for a single one.
@@ -39,6 +40,7 @@ function serviceWith(options: {
   units?: Record<string, OrgUnit>;
   childKinds?: OrgUnit['kind'][];
   user?: { id: string; orgUnitId: string | null; primaryCompanyId: string };
+  userCompanies?: string[];
 }) {
   const createUnit = jest.fn((data: unknown) => Promise.resolve(data));
   const updateUnit = jest.fn((_id: string, data: unknown) =>
@@ -64,7 +66,10 @@ function serviceWith(options: {
       descendantIdsOf: jest.fn(() => Promise.resolve([])),
     } as never,
     {} as never,
-    {} as never,
+    {
+      companyIdsOf: jest.fn(() => Promise.resolve(options.userCompanies ?? [OSD])),
+      replaceForUser: jest.fn(() => Promise.resolve()),
+    } as never,
     {
       findById: jest.fn(() =>
         Promise.resolve(

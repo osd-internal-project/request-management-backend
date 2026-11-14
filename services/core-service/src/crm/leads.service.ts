@@ -16,6 +16,7 @@ import { DomainEventsService } from '../events/domain-events.service';
 import type { LeadEventPayload } from '../events/event-catalog';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
+import { contactsOf, type LeadContactRow } from './lead-contact-rules';
 import { CampaignsService } from './campaigns.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
@@ -138,7 +139,7 @@ export interface LeadEventRow {
 }
 
 /** The webhook payload of a lead event — identity and state only, no contact data. */
-function leadEvent(
+export function leadEvent(
   companyId: string,
   row: LeadEventRow,
   extra: Partial<LeadEventPayload> = {},
@@ -218,6 +219,19 @@ export class LeadsService {
         { contactName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
         { email: { contains: q, mode: 'insensitive' } },
+        // ผู้ติดต่อเพิ่มเติม — ค้นเจอด้วยชื่อ/เบอร์/อีเมลของคนที่ไม่ใช่ผู้ติดต่อหลักด้วย
+        {
+          contacts: {
+            some: {
+              active: true,
+              OR: [
+                { name: { contains: q, mode: 'insensitive' } },
+                { phone: { contains: q } },
+                { email: { contains: q, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -293,6 +307,7 @@ export class LeadsService {
         },
         campaign: { select: { id: true, code: true, name: true } },
         activities: { orderBy: { createdAt: 'desc' } },
+        contacts: { where: { active: true }, orderBy: { createdAt: 'asc' } },
         targetAccount: {
           select: { id: true, name: true, priority: true, status: true },
         },
@@ -300,6 +315,11 @@ export class LeadsService {
     })) as
       | ({
           ownerUserId: string | null;
+          contactName: string | null;
+          contactPosition: string | null;
+          phone: string | null;
+          email: string | null;
+          contacts: LeadContactRow[];
           activities: {
             createdBy: string;
             completedBy: string | null;
@@ -347,6 +367,8 @@ export class LeadsService {
             displayName: nameOf.get(found.ownerUserId) ?? found.ownerUserId,
           }
         : null,
+      /** ผู้ติดต่อทั้งหมด — หลัก (สี่คอลัมน์บน Lead) ก่อน แล้วตามด้วยคนที่เพิ่มทีหลัง. */
+      contacts: contactsOf(found, found.contacts ?? []),
       activities: found.activities.map((activity) => ({
         ...activity,
         createdByName: nameOf.get(activity.createdBy) ?? activity.createdBy,
@@ -776,7 +798,9 @@ export class LeadsService {
   /**
    * แปลงเป็นโอกาสการขาย — spec: "แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อทั้งหมด". The
    * opportunity is created through OpportunitiesService (same code path as a hand-made
-   * opportunity), then the lead points at it and closes at the company's `won` status.
+   * opportunity), then the lead points at it. The lead keeps its open status: it
+   * closes as `won` only when the customer accepts the quotation or a sale order
+   * is opened (`LeadClosingService`, user decision 11 Nov 2026).
    *
    * ด่านเดียวที่เหลือที่นี่คือ "Lead ต้องยังเปิดอยู่" (`requireOpen`) ซึ่งเป็น
    * integrity ไม่ใช่ process. เงื่อนไขว่าแปลงได้จากขั้นไหน อยู่บน workflow
@@ -784,6 +808,15 @@ export class LeadsService {
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
+
+    // converting no longer closes the lead, so "already a deal" is asked here
+    if (lead.convertedOpportunityId) {
+      throw new AppError(
+        'CONFLICT',
+        'Lead นี้แปลงเป็นโอกาสการขายแล้ว — ทำงานต่อที่โอกาสการขายเดิม',
+        [{ field: 'converted_opportunity_id', reason: 'converted' }],
+      );
+    }
 
     // opportunity.ownerUserId is a person; a service account has no User row
     if (actor.isServiceAccount && !lead.ownerUserId) {
@@ -824,14 +857,9 @@ export class LeadsService {
         : { fromLeadId: id },
     );
 
-    const status = await this.statuses.closingCode(
-      actor.activeCompanyId,
-      'won',
-    );
     await this.leads.update({
       where: { id },
       data: {
-        status,
         convertedOpportunityId: opportunity.id,
         customerId: customerId ?? null,
         updatedBy: actor.userId,
@@ -860,9 +888,8 @@ export class LeadsService {
       name: 'lead.converted',
       payload: leadEvent(
         actor.activeCompanyId,
-        { ...lead, status },
+        lead,
         {
-          previous_status: lead.status,
           opportunity_id: opportunity.id,
           opportunity_code: opportunity.opportunityCode,
         },
@@ -895,7 +922,7 @@ export class LeadsService {
   }
 
   /** Visible AND still workable (anything but converted/disqualified). SCOPE-03: unseen = 404. */
-  private async requireOpen(id: string, actor: Principal) {
+  async requireOpen(id: string, actor: Principal) {
     const found = (await this.leads.findFirst({
       where: {
         id,
@@ -909,8 +936,10 @@ export class LeadsService {
       ownerOrgUnitId: string | null;
       sourceCode: string | null;
       customerId: string | null;
+      convertedOpportunityId: string | null;
       taxId: string | null;
       contactName: string | null;
+      contactPosition: string | null;
       phone: string | null;
       email: string | null;
     } | null;

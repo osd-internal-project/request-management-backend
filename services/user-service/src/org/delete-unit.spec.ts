@@ -10,6 +10,7 @@ function actor(): Principal {
     userId: 'admin-1',
     username: 'admin',
     activeCompanyId: OSD,
+    companies: [{ id: OSD }],
     permissions: ['admin.org.manage'],
     // Only the fields this path reads. Double cast because a partial
     // principal no longer overlaps the full one enough for a single one.

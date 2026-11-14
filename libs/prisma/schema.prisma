@@ -28,6 +28,18 @@ enum UserStatus {
   SUSPENDED
 }
 
+/// COMPANY = role ของบริษัท (หรือ template เมื่อ companyId null) · SYSTEM = role ระดับระบบ ถือได้แค่ `system.*`
+enum RoleLevel {
+  COMPANY
+  SYSTEM
+}
+
+/// P7: per-person change to what their roles give, in one company
+enum PermissionEffect {
+  GRANT
+  REVOKE
+}
+
 /// The five levels of the chart: บริษัท → ฝ่าย → แผนก → ทีม → ตำแหน่ง.
 ///
 /// **The order is declared in `libs/share/src/org/org-levels.ts`, not here.**
@@ -94,6 +106,8 @@ enum IntakeChannel {
   web_form
   line
   ai_care
+  /// softphone — call log สร้างหลังวางสาย
+  phone
 }
 
 enum ApprovalCaseStatus {
@@ -387,6 +401,8 @@ model Company {
   roles                   Role[]
   userRoles               UserRole[]
   keycloakMappings        KeycloakRoleMapping[]
+  hrSkills                HrSkill[]
+  permissionOverrides     UserPermissionOverride[]
   requestTypes            RequestTypeCompany[]
   requests                Request[]
   docNumberConfigs        DocNumberConfig[]
@@ -445,6 +461,10 @@ model User {
   firstName   String?
   lastName    String?
   status      UserStatus @default(ACTIVE)
+  /// ปิดได้เฉพาะ system admin (`/system/users`); สามช่องนี้ว่างเมื่อเปิดใช้อีกครั้ง
+  suspendedAt   DateTime?
+  suspendedBy   String?
+  suspendReason String?
 
   primaryCompanyId String?
   primaryCompany   Company? @relation("PrimaryCompany", fields: [primaryCompanyId], references: [id])
@@ -523,6 +543,8 @@ model User {
 
   companies               UserCompany[]
   roles                   UserRole[]               @relation("RoleHolder")
+  systemRoles             SystemUserRole[]         @relation("SystemRoleHolder")
+  permissionOverrides     UserPermissionOverride[] @relation("OverrideHolder")
   grantedRoles            UserRole[]               @relation("RoleGranter")
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
@@ -543,6 +565,7 @@ model User {
   scopesGranted           OrgUnitScope[]           @relation("ScopeViewerUser")
   scopesOn                OrgUnitScope[]           @relation("ScopeTargetUser")
   ownedCustomers          Customer[]               @relation("CustomerAccountOwner")
+  careConversations       CareConversation[]       @relation("CareAgent")
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
@@ -752,6 +775,9 @@ model Role {
   /// their group or from a scope grant ticked to allow it.
   visibilityLevel OrgUnitKind?
 
+  /// SYSTEM ต้องมี companyId = null (CHECK `roles_system_has_no_company`)
+  level RoleLevel @default(COMPANY)
+
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
@@ -760,6 +786,7 @@ model Role {
   company          Company?              @relation(fields: [companyId], references: [id])
   permissions      RolePermission[]
   users            UserRole[]
+  systemUsers      SystemUserRole[]
   scopeRules       ScopeRule[]
   keycloakMappings KeycloakRoleMapping[]
 
@@ -777,7 +804,8 @@ model Permission {
   type        String  @default("human")
   description String?
 
-  roles RolePermission[]
+  roles     RolePermission[]
+  overrides UserPermissionOverride[]
 
   @@index([module])
   @@index([type])
@@ -814,6 +842,46 @@ model UserRole {
   @@unique([userId, roleId, companyId])
   @@index([companyId, userId])
   @@map("user_roles")
+}
+
+/// role ระดับระบบ ไม่ผูกบริษัท — ให้ `Principal.systemPermissions` แยกจากสิทธิ์บริษัท
+model SystemUserRole {
+  id              String   @id @default(uuid())
+  userId          String
+  roleId          String
+  grantedByUserId String?
+  grantedAt       DateTime @default(now())
+
+  user User @relation("SystemRoleHolder", fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@map("system_user_roles")
+}
+
+/// P7: GRANT/REVOKE for one person in one company; what they hold = (roles ∪ GRANT) − REVOKE.
+///
+/// A row is live while `revokedAt` is null and `expiresAt` is null or ahead. At most one live
+/// row per (user, company, permission): partial unique index in the migration.
+model UserPermissionOverride {
+  id              String           @id @default(uuid())
+  userId          String
+  companyId       String
+  permissionCode  String
+  effect          PermissionEffect
+  reason          String
+  expiresAt       DateTime?
+  grantedByUserId String
+  createdAt       DateTime         @default(now())
+  revokedAt       DateTime?
+  revokedBy       String?
+
+  user       User       @relation("OverrideHolder", fields: [userId], references: [id])
+  company    Company    @relation(fields: [companyId], references: [id])
+  permission Permission @relation(fields: [permissionCode], references: [code])
+
+  @@index([companyId, userId])
+  @@map("user_permission_overrides")
 }
 
 /// ROLE-03: "Keycloak role → role in this system", per company. Re-evaluated
@@ -1116,6 +1184,8 @@ model Request {
   comments      RequestComment[]
   returnReasons RequestReturnReason[]
   approvalCases ApprovalCase[]
+  /// P3 — the disbursement this request opened, so its visibility follows the request
+  disbursement  Disbursement?         @relation("DisbursementRequest")
   slaClock      SlaClock?
   flowVersion   RequestFlowVersion?   @relation(fields: [flowVersionId], references: [id])
   stepRuns      RequestStepRun[]
@@ -2578,6 +2648,7 @@ model CrmCompanyConfig {
   letterheadBranch  String?
   letterheadAddress String?
   letterheadPhone   String?
+  letterheadFax     String?
   letterheadEmail   String?
   letterheadWebsite String?
   /// data URL (png/jpeg/webp base64) — เล็กพอเก็บในแถวได้ (จำกัด ~375KB).
@@ -2844,6 +2915,7 @@ model Lead {
   campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
   files                LeadFile[]
+  contacts             LeadContact[]
   targetAccount        TargetAccount?
 
   @@index([companyId, status])
@@ -2907,6 +2979,60 @@ model LeadFile {
   @@index([leadId, kind, uploadedAt])
   @@index([companyId])
   @@map("lead_files")
+}
+
+/// งานขายอัตโนมัติติดขัด (11 พ.ย. 2569) — หนึ่งแถวต่อครั้งที่ OSD Workflow เรียก `crm/ai/*`
+/// แล้ว CTD ปฏิเสธ (ขาดเจ้าของ/proposal/ราคามาตรฐาน …) ให้หน้า Lead/ดีลบอกเหตุผล.
+/// ไม่ลบ: action เดิมสำเร็จภายหลัง = ใส่ resolvedAt.
+model SalesAutomationIssue {
+  id            String    @id @default(uuid())
+  companyId     String
+  leadId        String?
+  opportunityId String?
+  /// intro | quote | close
+  step          String
+  /// action ของ plugin เช่น send_lead_email, convert_lead, create_standard_quotation
+  action        String
+  /// AppError code เช่น CRM_EMAIL_UNAVAILABLE
+  code          String
+  message       String
+  details       Json      @default("[]")
+  occurredAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  @@index([leadId, resolvedAt])
+  @@index([opportunityId, resolvedAt])
+  @@index([companyId, occurredAt])
+  @@map("sales_automation_issues")
+}
+
+/// ผู้ติดต่อเพิ่มเติมของ Lead (12 พ.ย. 2569). ผู้ติดต่อ **หลัก** ยังอยู่บน `leads`
+/// (`contactName` / `contactPosition` / `phone` / `email`) เพราะอีเมลขาย ใบเสนอราคา
+/// intake และ API ภายนอกอ่านจากตรงนั้น — ตารางนี้เก็บคนที่สองเป็นต้นไป จึงไม่มี
+/// ข้อมูลชุดเดียวกันสองที่ให้ drift. ตั้งคนอื่นเป็นหลัก = สลับค่ากับ `leads`.
+/// ลบ = `active = false`.
+model LeadContact {
+  id        String @id @default(uuid())
+  companyId String
+  leadId    String
+
+  name     String
+  position String?
+  phone    String?
+  email    String?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId, active])
+  @@index([companyId])
+  @@map("lead_contacts")
 }
 
 /// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`
@@ -3376,6 +3502,11 @@ model Quotation {
   currency     String          @default("THB")
   validUntil   DateTime?
   paymentTerms String?
+  /// แบบฟอร์มใบเสนอราคาของบริษัท (11 พ.ย. 2569) — พิมพ์ลงเอกสารเท่านั้น
+  deliveryTime String?
+  warranty     String?
+  partyFax     String?
+  sellerMobile String?
   note         String?
 
   /// ผลรวม จำนวน × ราคาต่อหน่วย ก่อนส่วนลด.
@@ -3508,6 +3639,9 @@ model Product {
   groupCode String?
   groupName String?
   active    Boolean @default(true)
+  /// sap | manual — `manual` = กรอกเองขณะยังไม่มี ERP; รอบ sync ไม่ปิดรายการนี้
+  /// และเมื่อ SAP มีรหัสเดียวกัน SAP เป็นเจ้าของแทน (กลับเป็น `sap`).
+  source    String  @default("sap")
 
   /// รอบ sync ล่าสุดที่เห็นรายการนี้ใน SAP.
   syncedAt  DateTime
@@ -3775,6 +3909,28 @@ model ChatWidgetGroup {
   @@id([widgetId, orgUnitId])
   @@index([orgUnitId])
   @@map("chat_widget_groups")
+}
+
+/// เบอร์ต่อ SIP ของ softphone (D-Callcenter) ต่อผู้ใช้ต่อบริษัท — admin ตั้งบนหน้าจอ.
+/// ไม่ผ่าน ID24 ของ D-CRM: SIP.js ใช้แค่ wss + extension + password + server.
+model SoftphoneExtension {
+  id             String   @id @default(uuid())
+  companyId      String
+  userId         String
+  /// SIP username = เลขต่อ
+  extension      String
+  /// `sealSecret` (AES-GCM, CONFIG_SECRET_KEY) — ไม่คืนใน API ฝั่ง admin
+  passwordSealed String
+  wssUrl         String
+  sipServer      String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  createdBy      String?
+  updatedBy      String?
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, userId])
+  @@map("softphone_extensions")
 }
 
 /// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
@@ -6089,6 +6245,53 @@ model MarkupRule {
   @@map("markup_rules")
 }
 
+/// ชุดรายการของ product (12 พ.ย. 2569) — "ลูกค้าสนใจ product นี้ ต้องดึง item
+/// อะไรเข้าใบเสนอราคา". `name` คือชื่อ product ที่พนักงานขายเลือกบน Lead
+/// (`intakeData.selected_product`, ไม่มีจึงใช้ `subProduct`) เทียบแบบไม่สนตัวพิมพ์;
+/// ไม่ซ้ำกันในบริษัทเดียวกันระหว่างแถวที่ยังไม่ลบ (ตรวจใน service เพราะ soft delete).
+model ProductBundle {
+  id        String  @id @default(uuid())
+  companyId String
+  name      String
+  note      String  @default("")
+  active    Boolean @default(true)
+  /// 13 พ.ย. 2569 — สิ่งที่ต้องรู้จากลูกค้าก่อนออกใบเสนอราคาของ product นี้:
+  /// [{ key, question, hints[] }] — งานขายอัตโนมัติถามข้อที่ยังไม่มีคำตอบทางอีเมล
+  requirements Json @default("[]")
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  items ProductBundleItem[]
+
+  @@index([companyId, active])
+  @@map("product_bundles")
+}
+
+/// item หนึ่งบรรทัดของชุด — `productCode` คือรหัสสินค้า SAP (`products.code`).
+/// `optional = false` เข้าใบเสนอราคาเสมอ; `true` คือ item เสริมที่พนักงานขาย
+/// เลือกเพิ่มเองบน Lead. แก้ชุด = เขียนบรรทัดใหม่ทั้งชุด.
+model ProductBundleItem {
+  id          String  @id @default(uuid())
+  bundleId    String
+  lineNo      Int
+  productCode String
+  quantity    Decimal @default(1) @db.Decimal(14, 4)
+  /// ราคารายเดือน: จำนวนเดือน — ว่าง = ค่าตั้งต้นของใบเสนอราคา (12).
+  termMonths  Int?
+  optional    Boolean @default(false)
+  /// `true` = จำนวนคงที่ ไม่คูณตามจำนวนที่ลูกค้าขอ (เช่น ค่าติดตั้งครั้งเดียว)
+  fixedQuantity Boolean @default(false)
+
+  bundle ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([bundleId, lineNo])
+  @@map("product_bundle_items")
+}
+
 /// CD-191 — closing a project: the request that asks the project's
 /// executives to close it (CrmConfig.projectCloseTypeCode). Approved, the
 /// project becomes `closed`; rejected, it can be fixed and asked again.
@@ -6799,9 +7002,12 @@ model HrEmployee {
   @@map("hr_employees")
 }
 
-/// CD-229 รายการทักษะที่ HR ดูแล — ใช้ร่วมทุกบริษัท.
+/// CD-229 รายการทักษะที่ HR ดูแล — `companyId` null = ทักษะกลาง (แก้ได้เฉพาะ system admin).
+///
+/// `code` คง unique ทั้งระบบ: ทักษะติดตัวคนข้ามบริษัท รหัสเดียวต้องหมายถึงทักษะเดียว
 model HrSkill {
   id        String   @id @default(uuid())
+  companyId String?
   code      String   @unique
   name      String
   category  String   @default("")
@@ -6810,8 +7016,10 @@ model HrSkill {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  company Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
   holders HrUserSkill[]
 
+  @@index([companyId])
   @@map("hr_skills")
 }
 
@@ -8641,6 +8849,8 @@ model Disbursement {
   docNo           String
   kind            String
   requestId       String    @unique
+  /// P3 — read visibility is the request's own rule, in one query (was an IN list)
+  request         Request   @relation("DisbursementRequest", fields: [requestId], references: [id])
   requestNo       String?
   requesterId     String
   orgUnitId       String?
@@ -8958,6 +9168,8 @@ model CareConversation {
   handoverNotifiedAt DateTime?
   /// CD-284 — the service team member holding it (status with_agent)
   agentUserId        String?
+  /// P3 — whose unit the conversation sits in for team and level visibility (Q10)
+  agent              User?     @relation("CareAgent", fields: [agentUserId], references: [id], onDelete: SetNull)
   agentSince         DateTime?
   /// CD-288 — when a person first took part (handed over or taken); never
   /// cleared, so a conversation given back to AI still counts as handed over
@@ -8971,6 +9183,7 @@ model CareConversation {
   @@index([companyId, status, lastMessageAt])
   @@index([customerId])
   @@index([status, timelineAt])
+  @@index([agentUserId])
   @@map("care_conversations")
 }
 
@@ -9456,7 +9669,7 @@ model CrmEmail {
 
   /// out = ระบบส่ง · in = ลูกค้าตอบเข้ามา
   direction String
-  /// out: lead_intro | quotation · in: reply
+  /// out: lead_intro | quotation | requirement_request · in: reply
   purpose   String
   /// sent | failed | received
   status    String

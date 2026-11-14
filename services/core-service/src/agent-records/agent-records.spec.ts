@@ -60,8 +60,14 @@ function setup() {
   const vuvagent = {
     mode: 'mock',
     dispatch: jest.fn().mockResolvedValue(undefined),
+    download: jest.fn().mockResolvedValue({
+      fileName: 'D-DEBT.docx',
+      mimeType: 'application/msword',
+      buffer: Buffer.from('PK'),
+    }),
   };
   const leads = { findOne: jest.fn().mockResolvedValue({ id: 'lead-1' }) };
+  const leadFiles = { upload: jest.fn().mockResolvedValue({ id: 'file-1' }) };
 
   const service = new AgentRecordsService(
     records as never,
@@ -70,8 +76,9 @@ function setup() {
     transactions as never,
     vuvagent as never,
     leads as never,
+    leadFiles as never,
   );
-  return { service, records, tx, audit, vuvagent, leads };
+  return { service, records, tx, audit, vuvagent, leads, leadFiles };
 }
 
 describe('AGENT_ACTIONS', () => {
@@ -83,7 +90,7 @@ describe('AGENT_ACTIONS', () => {
   });
 
   it('a caller without crm.lead.read can read no lead record', () => {
-    expect(readableActions(seller)).toEqual(['lead.find', 'lead.research']);
+    expect(readableActions(seller)).toEqual(['lead.find', 'lead.research', 'lead.suggest_products', 'lead.write_proposal']);
     expect(readableActions(outsider)).toEqual([]);
   });
 });
@@ -105,6 +112,17 @@ describe('route gates', () => {
         handler(LeadFindController.prototype, 'research'),
       ),
     ).toEqual(['crm.lead.manage']);
+  });
+
+  it('suggest products and write proposal need their own start right', () => {
+    for (const name of ['suggestProducts', 'writeProposal']) {
+      expect(
+        Reflect.getMetadata(
+          PERMISSIONS_KEY,
+          handler(LeadFindController.prototype, name),
+        ),
+      ).toEqual(['crm.lead.manage']);
+    }
   });
 
   it('reads are authenticated and filtered per action in the service', () => {
@@ -213,6 +231,44 @@ describe('AgentRecordsService.researchLead', () => {
   });
 });
 
+describe('AgentRecordsService proposal (Proposal Writer)', () => {
+  it('suggest products hands the agent the record id and lead id', async () => {
+    const { service, vuvagent, leads } = setup();
+
+    await service.suggestProducts('lead-1', seller);
+
+    expect(leads.findOne).toHaveBeenCalledWith('lead-1', seller);
+    expect(vuvagent.dispatch).toHaveBeenCalledWith(
+      'osd',
+      'lead.suggest_products',
+      { agent_record_id: 'rec-1', lead_id: 'lead-1' },
+    );
+  });
+
+  it('write proposal sends the chosen product, trimmed', async () => {
+    const { service, vuvagent } = setup();
+
+    await service.writeProposal('lead-1', { product: ' D-DEBT ' }, seller);
+
+    expect(vuvagent.dispatch).toHaveBeenCalledWith(
+      'osd',
+      'lead.write_proposal',
+      { agent_record_id: 'rec-1', lead_id: 'lead-1', product: 'D-DEBT' },
+    );
+  });
+
+  it('a lead the caller cannot see creates nothing and sends nothing', async () => {
+    const { service, tx, vuvagent, leads } = setup();
+    leads.findOne.mockRejectedValue(new Error('NOT_FOUND'));
+
+    await expect(
+      service.writeProposal('other-lead', { product: 'D-DEBT' }, seller),
+    ).rejects.toThrow('NOT_FOUND');
+    expect(tx.agentRecord.create).not.toHaveBeenCalled();
+    expect(vuvagent.dispatch).not.toHaveBeenCalled();
+  });
+});
+
 describe('AgentRecordsService reads', () => {
   it('list pins the company and the readable actions, and pages', async () => {
     const { service, records } = setup();
@@ -227,7 +283,7 @@ describe('AgentRecordsService reads', () => {
 
     const where = {
       AND: [
-        { companyId: 'osd', action: { in: ['lead.find', 'lead.research'] } },
+        { companyId: 'osd', action: { in: ['lead.find', 'lead.research', 'lead.suggest_products', 'lead.write_proposal'] } },
         { status: 'done' },
       ],
     };
@@ -240,6 +296,29 @@ describe('AgentRecordsService reads', () => {
       page_size: 20,
       total: 41,
     });
+  });
+
+  it('list narrows to one lead through input.lead_id, inside the readable set', async () => {
+    const { service, records } = setup();
+    await service.list(seller, {
+      page: 1,
+      page_size: 10,
+      status: 'processing',
+      lead_id: 'lead-1',
+    });
+    expect(records.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { companyId: 'osd', action: { in: ['lead.find', 'lead.research', 'lead.suggest_products', 'lead.write_proposal'] } },
+            {
+              status: 'processing',
+              input: { path: ['lead_id'], equals: 'lead-1' },
+            },
+          ],
+        },
+      }),
+    );
   });
 
   it('list for a caller with no readable action matches nothing', async () => {
@@ -354,6 +433,78 @@ describe('AgentRecordsService.complete (external callback)', () => {
     expect(audit.record).not.toHaveBeenCalled();
   });
 
+  const proposalRow = {
+    id: 'rec-1',
+    companyId: 'osd',
+    action: 'lead.write_proposal',
+    status: 'done',
+    input: { lead_id: 'lead-1', product: 'D-DEBT' },
+    result: { product: 'D-DEBT', proposal_url: 'https://1.1.1.1/f?t=1' },
+  };
+
+  it('a done proposal keeps the .docx as the Lead proposal file', async () => {
+    const { service, tx, vuvagent, leadFiles, records } = setup();
+    tx.agentRecord.findFirst
+      .mockResolvedValueOnce({ status: 'processing', timedOutAt: null })
+      .mockResolvedValueOnce(proposalRow);
+
+    await service.complete('rec-1', { status: 'done' }, agent, 'osd');
+
+    expect(vuvagent.download).toHaveBeenCalledWith(
+      'osd',
+      'lead.write_proposal',
+      'https://1.1.1.1/f?t=1',
+      20 * 1024 * 1024,
+    );
+    expect(leadFiles.upload).toHaveBeenCalledWith(
+      'lead-1',
+      'proposal',
+      expect.objectContaining({ originalname: 'D-DEBT.docx', size: 2 }),
+      agent,
+    );
+    expect(records.update).toHaveBeenCalledWith({
+      where: { id: 'rec-1' },
+      data: { result: { ...proposalRow.result, proposal_file_id: 'file-1' } },
+    });
+  });
+
+  it('a failed download leaves the job done and says why in result', async () => {
+    const { service, tx, vuvagent, leadFiles, records } = setup();
+    tx.agentRecord.findFirst
+      .mockResolvedValueOnce({ status: 'processing', timedOutAt: null })
+      .mockResolvedValueOnce(proposalRow);
+    vuvagent.download.mockRejectedValue(
+      new VuvagentDispatchError(403, 'ดาวน์โหลดไฟล์ไม่ได้: HTTP 403'),
+    );
+
+    await service.complete('rec-1', { status: 'done' }, agent, 'osd');
+
+    expect(leadFiles.upload).not.toHaveBeenCalled();
+    expect(records.update).toHaveBeenCalledWith({
+      where: { id: 'rec-1' },
+      data: {
+        result: {
+          ...proposalRow.result,
+          proposal_file_error: 'ดาวน์โหลดไฟล์ไม่ได้: HTTP 403',
+        },
+      },
+    });
+  });
+
+  it('a failed proposal, or another action, fetches nothing', async () => {
+    const { service, tx, vuvagent } = setup();
+    tx.agentRecord.findFirst
+      .mockResolvedValueOnce({ status: 'processing', timedOutAt: null })
+      .mockResolvedValueOnce({ ...proposalRow, status: 'failed' })
+      .mockResolvedValueOnce({ status: 'processing', timedOutAt: null })
+      .mockResolvedValueOnce({ ...proposalRow, action: 'lead.research' });
+
+    await service.complete('rec-1', { status: 'failed' }, agent, 'osd');
+    await service.complete('rec-1', { status: 'done' }, agent, 'osd');
+
+    expect(vuvagent.download).not.toHaveBeenCalled();
+  });
+
   it("another company's record answers 404 before any write", async () => {
     const { service, tx } = setup();
     tx.agentRecord.findFirst.mockResolvedValue(null);
@@ -399,7 +550,7 @@ describe('AgentRecordsService.watch', () => {
         where: {
           id: { in: ['rec-1'] },
           companyId: 'osd',
-          action: { in: ['lead.find', 'lead.research'] },
+          action: { in: ['lead.find', 'lead.research', 'lead.suggest_products', 'lead.write_proposal'] },
         },
       }),
     );

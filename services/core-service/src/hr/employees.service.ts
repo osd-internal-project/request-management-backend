@@ -77,6 +77,11 @@ interface UserSkill {
  * HR (`hr.employee.read` / `.manage`) sees and keeps the register; anyone
  * sees their own profile. Finer visibility for managers is CD-230.
  */
+/** The skills a company sees: the shared catalog (`companyId` null) and its own. */
+function visibleSkillsWhere(actor: Principal) {
+  return { OR: [{ companyId: null }, { companyId: actor.activeCompanyId }] };
+}
+
 @Injectable()
 export class EmployeesService {
   constructor(
@@ -256,7 +261,7 @@ export class EmployeesService {
       ]);
     }
     const known = (await this.skills.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, ...visibleSkillsWhere(actor) },
       select: { id: true },
     })) as { id: string }[];
     if (known.length !== ids.length) {
@@ -313,7 +318,9 @@ export class EmployeesService {
     const keeper = actor.permissions.includes('hr.employee.manage');
     return {
       items: await this.skills.findMany({
-        where: keeper ? {} : { active: true },
+        where: keeper
+          ? visibleSkillsWhere(actor)
+          : { ...visibleSkillsWhere(actor), active: true },
         orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
       }),
     };
@@ -321,8 +328,20 @@ export class EmployeesService {
 
   async saveSkill(actor: Principal, id: string | null, dto: SaveSkillDto) {
     if (id) {
-      const found = await this.skills.findFirst({ where: { id } });
+      // BaseRepository's delegate is untyped; the row is an HrSkill.
+      const found = (await this.skills.findFirst({
+        where: { id, ...visibleSkillsWhere(actor) },
+      })) as { companyId: string | null } | null;
       if (!found) throw new AppError('NOT_FOUND', 'ไม่พบทักษะที่ระบุ');
+      // Q5: a shared skill belongs to every company, so only the system plane edits it.
+      if (
+        found.companyId === null &&
+        !actor.systemPermissions.includes('system.company.manage')
+      ) {
+        throw new AppError('FORBIDDEN', 'ทักษะกลางแก้ได้เฉพาะผู้ดูแลระบบ', [
+          { field: 'permission', reason: 'system.company.manage' },
+        ]);
+      }
       await this.skills.update({
         where: { id },
         data: {
@@ -344,13 +363,15 @@ export class EmployeesService {
           { field: code ? 'name' : 'code', reason: 'required' },
         ]);
       }
-      if (await this.skills.findFirst({ where: { code } })) {
+      // `code` is unique across companies (a person's skill travels with them).
+      if (await this.skills.findUnique({ where: { code } })) {
         throw new AppError('CONFLICT', `รหัสทักษะ ${code} มีอยู่แล้ว`, [
           { field: 'code', reason: 'taken' },
         ]);
       }
       await this.skills.create({
         data: {
+          companyId: actor.activeCompanyId,
           code,
           name,
           category: dto.category?.trim() ?? '',

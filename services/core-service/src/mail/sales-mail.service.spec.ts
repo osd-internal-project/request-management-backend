@@ -113,6 +113,7 @@ function harness(
     leadActivities as never,
     opportunityActivities as never,
     quotations as never,
+    {} as never,
     leadFiles as never,
     print as never,
     llm as never,
@@ -420,6 +421,34 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       // converted: the activity goes on the deal
       expect(h.opportunityActivities.create).toHaveBeenCalled();
       expect(h.leadActivities.create).not.toHaveBeenCalled();
+    });
+
+    it('a bare answer to our requirement email goes on as interested, not unclear (13 พ.ย. 2569)', async () => {
+      const h = harness();
+      h.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
+      h.emails.findMany.mockResolvedValueOnce([
+        { purpose: 'lead_intro', status: 'sent', direction: 'out' },
+        { purpose: 'reply', status: 'received', direction: 'in' },
+        { purpose: 'requirement_request', status: 'sent', direction: 'out' },
+      ] as never);
+      const row = await h.service.ingest(
+        inbound({ text: '50 เครื่อง ที่ระยอง' }),
+        'sales@osd.co.th',
+      );
+      expect(row).toMatchObject({
+        intent: 'interested',
+        intentReason: 'ตอบคำถาม requirement ที่ระบบถามไป',
+      });
+
+      // the same words in a thread where nothing was asked stay unclear
+      const plain = harness();
+      plain.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
+      expect(
+        await plain.service.ingest(
+          inbound({ text: '50 เครื่อง ที่ระยอง' }),
+          'sales@osd.co.th',
+        ),
+      ).toMatchObject({ intent: 'unclear' });
     });
 
     it('"ขอส่วนลด" moves the deal to negotiating and tells the owner what to do (6 พ.ย. 2569)', async () => {

@@ -64,7 +64,11 @@ function harness(steps: unknown[] = [step()], total = steps.length) {
     stepIdsByBasis: jest.fn(() => Promise.resolve(['st-9'])),
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
-  const service = new DecisionLogService(cases as never, audit as never);
+  const service = new DecisionLogService(
+    cases as never,
+    audit as never,
+    { delegatorsFor: jest.fn(() => Promise.resolve([])) } as never,
+  );
   return { service, cases, audit, wheres };
 }
 
@@ -152,6 +156,32 @@ describe('APV-06 DecisionLogService', () => {
         lt: new Date('2026-09-30T17:00:00Z'),
       },
       case: { companyId: 'company-osd' },
+    });
+  });
+
+  it('SCOPE-02: approval.history.read alone reads only cases the person can open', async () => {
+    const { service, wheres } = harness();
+
+    await service.list(query, principal());
+
+    const scoped = (wheres[0] as { case: { OR?: unknown[] } }).case;
+    expect(scoped.OR).toHaveLength(3);
+    expect(scoped.OR?.[1]).toEqual({
+      steps: { some: { decidedByUserId: 'u-auditor' } },
+    });
+  });
+
+  it('SCOPE-02: approval.history.read.all reads the whole company', async () => {
+    const { service, wheres } = harness();
+    const auditor = {
+      ...principal(),
+      permissions: ['approval.history.read', 'approval.history.read.all'],
+    } as Principal;
+
+    await service.list(query, auditor);
+
+    expect((wheres[0] as { case: object }).case).toEqual({
+      companyId: 'company-osd',
     });
   });
 

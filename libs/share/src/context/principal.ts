@@ -9,6 +9,20 @@ export interface PrincipalCompany {
   readonly name: string;
   readonly docPrefix: string;
   readonly isPrimary: boolean;
+  /**
+   * P6 (Q2): not a membership — a system admin holding `system.tenant.read`
+   * entered it, and acts there with that company's `admin` role.
+   */
+  readonly via?: 'system';
+}
+
+/** True when the caller works in the active company through the system plane, not membership. */
+export function enteredAsSystem(principal: Principal): boolean {
+  return (
+    principal.companies.find(
+      (company) => company.id === principal.activeCompanyId,
+    )?.via === 'system'
+  );
 }
 
 /**
@@ -107,6 +121,8 @@ export interface Principal {
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
+  /** `system.*` จาก `SystemUserRole` — แยกจาก `permissions` ไม่ union, ตรวจด้วย `@SystemPermissions`. */
+  readonly systemPermissions: readonly Permission[];
   /** Sensitive fields this caller may see unmasked (SCOPE-04). */
   readonly sensitiveFieldsVisible: readonly string[];
   /**

@@ -26,6 +26,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     permissions: ['request.create'],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     ...overrides,
   } as unknown as Principal;
 }

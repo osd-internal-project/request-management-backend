@@ -426,6 +426,9 @@ export class WorkOrdersService implements OnModuleInit {
 
   /** The service side of a case, if it has one (the request page asks). */
   async ofRequest(actor: Principal, requestId: string) {
+    // SCOPE-02 — a person sees it only for a request they can open (its 404 is the
+    // answer); a company key reads as the company (AGENTS.md "The twelfth").
+    if (!actor.isServiceAccount) await this.requests.findOne(requestId, actor);
     const order = (await this.orders.findFirst({
       where: { requestId, companyId: actor.activeCompanyId },
       select: { id: true },

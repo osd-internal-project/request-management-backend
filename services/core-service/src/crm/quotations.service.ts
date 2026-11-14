@@ -19,6 +19,7 @@ import {
   QUOTATION_LIST_SELECT,
   QuotationRepository,
 } from './sales.repositories';
+import { LeadClosingService } from './lead-closing.service';
 import { ProductCatalogService } from './product-catalog.service';
 import { ProductPriceRepository } from './product.repositories';
 import { CustomerSegmentAssignmentRepository } from './segment.repositories';
@@ -113,6 +114,7 @@ export class QuotationsService {
     private readonly prices: ProductPriceRepository,
     private readonly segmentAssignments: CustomerSegmentAssignmentRepository,
     private readonly vendorCosts: VendorCostService,
+    private readonly leadClosing: LeadClosingService,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -366,6 +368,10 @@ export class QuotationsService {
               ? new Date(dto.valid_until)
               : defaultValidUntil(config.quotationValidityDays),
             paymentTerms: dto.payment_terms?.trim() || null,
+            deliveryTime: dto.delivery_time?.trim() || null,
+            warranty: dto.warranty?.trim() || null,
+            partyFax: dto.customer_fax?.trim() || null,
+            sellerMobile: dto.seller_mobile?.trim() || null,
             note: dto.note?.trim() || null,
             ...totalsData(totals),
             ownerUserId: opportunity.ownerUserId,
@@ -481,6 +487,18 @@ export class QuotationsService {
               : {}),
             ...(dto.payment_terms !== undefined
               ? { paymentTerms: dto.payment_terms.trim() || null }
+              : {}),
+            ...(dto.delivery_time !== undefined
+              ? { deliveryTime: dto.delivery_time.trim() || null }
+              : {}),
+            ...(dto.warranty !== undefined
+              ? { warranty: dto.warranty.trim() || null }
+              : {}),
+            ...(dto.customer_fax !== undefined
+              ? { partyFax: dto.customer_fax.trim() || null }
+              : {}),
+            ...(dto.seller_mobile !== undefined
+              ? { sellerMobile: dto.seller_mobile.trim() || null }
               : {}),
             ...(dto.note !== undefined
               ? { note: dto.note.trim() || null }
@@ -814,6 +832,13 @@ export class QuotationsService {
       },
     });
 
+    // the customer confirmed (or sent a PO) — the Lead this deal came from closes as won
+    await this.leadClosing.wonByOpportunity(
+      found.opportunityId,
+      'quotation_accepted',
+      actor,
+    );
+
     return this.findOne(id, actor);
   }
 
@@ -929,6 +954,10 @@ export class QuotationsService {
             currency: found.currency,
             validUntil: defaultValidUntil(config.quotationValidityDays),
             paymentTerms: found.paymentTerms,
+            deliveryTime: found.deliveryTime,
+            warranty: found.warranty,
+            partyFax: found.partyFax,
+            sellerMobile: found.sellerMobile,
             note: found.note,
             subtotal: found.subtotal,
             discountTotal: found.discountTotal,
@@ -1386,26 +1415,24 @@ export class QuotationsService {
    * stops it before anything is written (`CRM_QUOTATION_UNPRICED`), so the
    * workflow can hand the deal to the salesperson instead.
    */
-  async createAtStandardPrice(
-    opportunityId: string,
-    items: readonly {
-      product_code: string;
-      quantity: number;
-      term_months?: number;
-    }[],
-    actor: Principal,
-    options: { title?: string; note?: string } = {},
+  /**
+   * The products and the standard prices in effect today for these codes —
+   * the newest wins when two overlap. Shared by `createAtStandardPrice` and
+   * the sales-automation checklist (11 พ.ย. 2569), so both judge alike.
+   */
+  async standardPricesFor(
+    companyId: string,
+    codes: readonly string[],
+    currency: string,
   ) {
-    const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
-    const codes = [...new Set(items.map((item) => item.product_code.trim()))];
     const today = startOfToday();
     const [products, prices] = await Promise.all([
-      this.catalog.describe(actor.activeCompanyId, codes),
+      this.catalog.describe(companyId, [...codes]),
       this.prices.findMany({
         where: {
-          companyId: actor.activeCompanyId,
-          productCode: { in: codes },
-          currency: opportunity.currency,
+          companyId,
+          productCode: { in: [...codes] },
+          currency,
           scope: 'standard',
           deletedAt: null,
           validFrom: { lte: today },
@@ -1427,11 +1454,30 @@ export class QuotationsService {
         }[]
       >,
     ]);
-    // the newest in effect wins when two overlap
     const priceOf = new Map<string, (typeof prices)[number]>();
     for (const row of prices) {
       if (!priceOf.has(row.productCode)) priceOf.set(row.productCode, row);
     }
+    return { products, priceOf };
+  }
+
+  async createAtStandardPrice(
+    opportunityId: string,
+    items: readonly {
+      product_code: string;
+      quantity: number;
+      term_months?: number;
+    }[],
+    actor: Principal,
+    options: { title?: string; note?: string } = {},
+  ) {
+    const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
+    const codes = [...new Set(items.map((item) => item.product_code.trim()))];
+    const { products, priceOf } = await this.standardPricesFor(
+      actor.activeCompanyId,
+      codes,
+      opportunity.currency,
+    );
 
     const missing = items
       .map((item, index) => ({ item, index }))
@@ -1601,6 +1647,10 @@ interface QuotationForAction {
   currency: string;
   validUntil: Date | null;
   paymentTerms: string | null;
+  deliveryTime: string | null;
+  warranty: string | null;
+  partyFax: string | null;
+  sellerMobile: string | null;
   note: string | null;
   subtotal: Prisma.Decimal;
   discountTotal: Prisma.Decimal;

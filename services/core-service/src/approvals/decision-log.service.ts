@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
+  accessSubject,
   AppError,
   AuditWriter,
   auditActor,
   paginated,
+  reachableCaseWhere,
   toSkipTake,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
@@ -12,6 +14,7 @@ import {
   ApprovalCaseRepository,
   type DecisionLogStep,
 } from './approval-case.repository';
+import { DelegationRepository } from './delegation.repository';
 import type {
   DecisionBasis,
   DecisionLogQueryDto,
@@ -164,6 +167,7 @@ export class DecisionLogService {
   constructor(
     private readonly cases: ApprovalCaseRepository,
     private readonly audit: AuditWriter,
+    private readonly delegations: DelegationRepository,
   ) {}
 
   async list(query: DecisionLogQueryDto, actor: Principal) {
@@ -271,6 +275,22 @@ export class DecisionLogService {
     };
   }
 
+  /** `.read.all` reads the company's whole log; `.read` only cases they can open. */
+  private async reachable(
+    actor: Principal,
+  ): Promise<Prisma.ApprovalCaseWhereInput> {
+    if (actor.permissions.includes('approval.history.read.all')) return {};
+
+    const covering = await this.delegations.delegatorsFor(
+      actor.activeCompanyId,
+      actor.userId,
+      new Date(),
+    );
+    return reachableCaseWhere(
+      accessSubject(actor, covering),
+    ) as Prisma.ApprovalCaseWhereInput;
+  }
+
   private async where(
     query: DecisionLogQueryDto,
     actor: Principal,
@@ -282,6 +302,7 @@ export class DecisionLogService {
       case: {
         companyId: actor.activeCompanyId,
         ...(query.subject_type ? { subjectType: query.subject_type } : {}),
+        ...(await this.reachable(actor)),
       },
       ...(query.decided_by ? { decidedByUserId: query.decided_by } : {}),
     };

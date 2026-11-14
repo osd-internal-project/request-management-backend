@@ -43,6 +43,7 @@ const principal = (overrides: Partial<Principal> = {}): Principal =>
     sensitiveFieldsAll: [],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     ...overrides,
   }) as unknown as Principal;
 
@@ -215,6 +216,13 @@ describe('CD-92 v2: dashboard administration', () => {
     ]);
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'bi.dashboard.created' }),
+      expect.anything(),
+    );
+    // A new dashboard filters by the viewer's company unless the admin opts out.
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ lockCompany: true }),
+      }),
       expect.anything(),
     );
   });

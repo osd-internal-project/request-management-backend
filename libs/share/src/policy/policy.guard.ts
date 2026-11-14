@@ -10,6 +10,8 @@ import {
   PUBLIC_KEY,
   SERVICE_ACCOUNT_ALLOWED_KEY,
   SERVICE_ACCOUNT_ONLY_KEY,
+  ANY_SYSTEM_PERMISSION_KEY,
+  SYSTEM_PERMISSIONS_KEY,
 } from './policy.decorators';
 
 /**
@@ -67,6 +69,51 @@ export class PolicyGuard implements CanActivate {
     ) {
       throw new AppError('FORBIDDEN', 'บัญชีบริการเรียก endpoint นี้ไม่ได้', [
         { field: 'principal', reason: 'service account outside its scope' },
+      ]);
+    }
+
+    const system = this.reflector.getAllAndOverride<Permission[]>(
+      SYSTEM_PERMISSIONS_KEY,
+      targets,
+    );
+
+    if (system?.length) {
+      const missing = system.filter(
+        (permission) => !principal.systemPermissions.includes(permission),
+      );
+
+      if (missing.length) {
+        throw new AppError(
+          'FORBIDDEN',
+          'ไม่มีสิทธิ์ระดับระบบสำหรับส่วนนี้',
+          missing.map((permission) => ({
+            field: 'permission',
+            reason: permission,
+          })),
+        );
+      }
+
+      return true;
+    }
+
+    const anySystem = this.reflector.getAllAndOverride<Permission[]>(
+      ANY_SYSTEM_PERMISSION_KEY,
+      targets,
+    );
+
+    if (anySystem?.length) {
+      if (
+        anySystem.some((permission) =>
+          principal.systemPermissions.includes(permission),
+        )
+      )
+        return true;
+
+      throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ระดับระบบสำหรับส่วนนี้', [
+        {
+          field: 'permission',
+          reason: `ต้องมีอย่างใดอย่างหนึ่ง: ${anySystem.join(', ')}`,
+        },
       ]);
     }
 

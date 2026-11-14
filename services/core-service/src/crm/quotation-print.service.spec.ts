@@ -106,7 +106,11 @@ describe('CD-76 ใบเสนอราคาฉบับพิมพ์', () =
       address: null,
     });
     expect(view.letterhead).toMatchObject({ nameTh: 'OSD', logo: null });
-    expect(view.seller).toEqual({ name: 'วิชัย ส.', email: 'w@osd.co.th' });
+    expect(view.seller).toEqual({
+      name: 'วิชัย ส.',
+      email: 'w@osd.co.th',
+      phone: null,
+    });
     expect(view.isFinal).toBe(true);
   });
 

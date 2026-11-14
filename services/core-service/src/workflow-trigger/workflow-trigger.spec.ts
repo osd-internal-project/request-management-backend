@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { sealSecret } from '../pm/config-rules';
 import { WorkflowStartError } from '../workflow/workflow-client';
 import { WorkflowTriggerAdminService } from './workflow-trigger-admin.service';
@@ -12,7 +13,7 @@ import {
   TRIGGER_EVENT_KEYS,
 } from './workflow-trigger-rules';
 
-const SECRET = 'test-config-secret';
+const SECRET = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-secret' });
 const CHANNEL = 'cmvhx4s5c05cl97016ttnrkj3';
 
 const actor = {
@@ -432,7 +433,7 @@ describe('WorkflowTriggerDispatchService', () => {
   it('a key that no longer opens (CONFIG_SECRET_KEY changed) is dead at once', async () => {
     const { service, starts, triggers, workflow } = dispatch();
     triggers.findUnique.mockResolvedValue(
-      trigger({ channelKeyEnc: sealSecret('k', 'another-secret') }),
+      trigger({ channelKeyEnc: sealSecret('k', keyringFromEnv({ CONFIG_SECRET_KEY: 'another-secret' })) }),
     );
     starts.claimDue.mockResolvedValue([claimed()]);
     await service.sweep();

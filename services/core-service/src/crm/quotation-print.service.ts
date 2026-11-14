@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { monthlyRecurring } from './quotation-math';
+import { quotationPdf } from './quotation-pdf';
 import {
   AppError,
   Principal,
@@ -19,6 +20,10 @@ export interface PrintRow {
   currency: string;
   validUntil: Date | null;
   paymentTerms: string | null;
+  deliveryTime: string | null;
+  warranty: string | null;
+  partyFax: string | null;
+  sellerMobile: string | null;
   note: string | null;
   partyName: string;
   partyTaxId: string | null;
@@ -34,6 +39,10 @@ export interface PrintRow {
   ownerUserId: string;
   companyId: string;
   company: { name: string };
+  opportunity: {
+    prospectPhone: string | null;
+    prospectEmail: string | null;
+  } | null;
   customer: {
     customerCode: string;
     nameTh: string;
@@ -47,6 +56,11 @@ export interface PrintRow {
       district: string | null;
       province: string | null;
       postalCode: string | null;
+    }[];
+    contacts: {
+      name: string;
+      phone: string | null;
+      email: string | null;
     }[];
   } | null;
   lines: {
@@ -82,6 +96,19 @@ export class QuotationPrintService {
     private readonly members: CompanyMemberRepository,
   ) {}
 
+  /**
+   * ใบเสนอราคาเป็นไฟล์ PDF — ตัวเดียวกับที่แนบอีเมลถึงลูกค้า หน้าพิมพ์ในเว็บ
+   * แสดงไฟล์นี้ จอกับอีเมลจึงไม่มีทางต่างกัน.
+   */
+  async pdf(id: string, actor: Principal) {
+    const view = await this.printView(id, actor);
+    const { quotationNo, version } = view.quotation;
+    return {
+      fileName: `${quotationNo}${(version ?? 1) > 1 ? `-v${version}` : ''}.pdf`,
+      content: await quotationPdf(view),
+    };
+  }
+
   async printView(id: string, actor: Principal) {
     const found = (await this.quotations.findFirst({
       where: { id, AND: [visibleSalesWhere(salesAccessSubject(actor))] },
@@ -94,6 +121,10 @@ export class QuotationPrintService {
         currency: true,
         validUntil: true,
         paymentTerms: true,
+        deliveryTime: true,
+        warranty: true,
+        partyFax: true,
+        sellerMobile: true,
         note: true,
         partyName: true,
         partyTaxId: true,
@@ -109,6 +140,8 @@ export class QuotationPrintService {
         ownerUserId: true,
         companyId: true,
         company: { select: { name: true } },
+        // ผู้มุ่งหวังที่ยังไม่เป็นลูกค้า — เบอร์/อีเมลอยู่บนดีล
+        opportunity: { select: { prospectPhone: true, prospectEmail: true } },
         customer: {
           select: {
             customerCode: true,
@@ -129,6 +162,11 @@ export class QuotationPrintService {
                 province: true,
                 postalCode: true,
               },
+            },
+            contacts: {
+              where: { active: true },
+              orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+              select: { name: true, phone: true, email: true },
             },
           },
         },
@@ -159,15 +197,25 @@ export class QuotationPrintService {
       }) as Promise<Record<string, string | null> | null>,
       this.members.findMany({
         where: { id: { in: [found.ownerUserId] } },
-        select: { id: true, displayName: true, email: true },
-      }) as Promise<{ displayName: string; email: string | null }[]>,
+        select: { id: true, displayName: true, email: true, phone: true },
+      }) as Promise<
+        { displayName: string; email: string | null; phone?: string | null }[]
+      >,
     ]);
 
     const { company, customer } = found;
     const billing = customer?.locations[0] ?? null;
+    // ผู้ติดต่อบนใบ (Attention) ถ้าชื่อตรงกับทะเบียน ไม่งั้นผู้ติดต่อหลัก
+    const contact =
+      customer?.contacts?.find(
+        (row) => row.name.trim() === found.contactName?.trim(),
+      ) ??
+      customer?.contacts?.[0] ??
+      null;
     // Internal keys stay out of the printed payload.
     const quotation: Partial<PrintRow> = { ...found };
     delete quotation.company;
+    delete quotation.opportunity;
     delete quotation.customer;
     delete quotation.ownerUserId;
     delete quotation.companyId;
@@ -197,9 +245,19 @@ export class QuotationPrintService {
               .join(' ')
           : null,
         contactName: found.contactName,
+        phone: customer
+          ? (contact?.phone ?? null)
+          : (found.opportunity?.prospectPhone ?? null),
+        email: customer
+          ? (contact?.email ?? null)
+          : (found.opportunity?.prospectEmail ?? null),
       },
       seller: sellers[0]
-        ? { name: sellers[0].displayName, email: sellers[0].email }
+        ? {
+            name: sellers[0].displayName,
+            email: sellers[0].email,
+            phone: sellers[0].phone ?? null,
+          }
         : null,
       letterhead: {
         nameTh: config?.letterheadNameTh ?? company.name,
@@ -208,6 +266,7 @@ export class QuotationPrintService {
         branch: config?.letterheadBranch ?? null,
         address: config?.letterheadAddress ?? null,
         phone: config?.letterheadPhone ?? null,
+        fax: config?.letterheadFax ?? null,
         email: config?.letterheadEmail ?? null,
         website: config?.letterheadWebsite ?? null,
         logo: config?.letterheadLogo ?? null,

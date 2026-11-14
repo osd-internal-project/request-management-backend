@@ -41,6 +41,19 @@ export class ResearchLeadDto {
   focus?: string;
 }
 
+export class WriteProposalDto {
+  @ApiProperty({
+    description:
+      'สินค้าหนึ่งตัวจากผลแนะนำ (`lead.suggest_products`) — ส่งตามที่ได้มาทุกตัวอักษร',
+    example: 'D-DEBT',
+    maxLength: 100,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  product!: string;
+}
+
 export class ListAgentRecordsDto extends PageQueryDto {
   @ApiPropertyOptional({ enum: AGENT_RECORD_STATUSES })
   @IsOptional()
@@ -51,6 +64,11 @@ export class ListAgentRecordsDto extends PageQueryDto {
   @IsOptional()
   @IsIn(Object.keys(AGENT_ACTIONS))
   action?: string;
+
+  @ApiPropertyOptional({ description: 'งานของ Lead นี้ (`input.lead_id`)' })
+  @IsOptional()
+  @IsUUID('4')
+  lead_id?: string;
 }
 
 export class StreamAgentRecordsDto {

@@ -389,8 +389,9 @@ export class CreateRequestTypeDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(32)
-  @Matches(/^[A-Z0-9_]+$/, {
-    message: 'code ต้องเป็นตัวพิมพ์ใหญ่ ตัวเลข หรือขีดล่างเท่านั้น',
+  // `-` because the catalog's codes carry it (BS-01, HR-01); only this DTO refused it.
+  @Matches(/^[A-Z0-9_-]+$/, {
+    message: 'code ต้องเป็นตัวพิมพ์ใหญ่ ตัวเลข ขีดล่าง หรือขีด (-) เท่านั้น',
   })
   code!: string;
 

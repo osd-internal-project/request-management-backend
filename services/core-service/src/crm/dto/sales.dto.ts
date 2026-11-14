@@ -384,6 +384,36 @@ export class UpdateLeadActivityDto {
   outcome?: (typeof ACTIVITY_OUTCOMES)[number] | null;
 }
 
+/**
+ * ผู้ติดต่อของ Lead (12 พ.ย. 2569) — เขียนทั้งชุดทุกครั้งเหมือน
+ * `CustomerContactDto`: field ที่ไม่ส่งมา = ว่าง.
+ */
+export class LeadContactDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  position?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  /** true = ตั้งเป็นผู้ติดต่อหลัก — คนเดิมย้ายลงมาเป็นผู้ติดต่อเพิ่มเติม. */
+  @IsOptional()
+  @IsBoolean()
+  is_primary?: boolean;
+}
+
 export class DisqualifyLeadDto {
   @IsString()
   @IsNotEmpty()

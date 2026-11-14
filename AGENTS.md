@@ -18,6 +18,7 @@ How to work a plan and report a checklist is in `~/.claude/AGENTS.md` and is not
 restated here. What is recorded here is why those rules exist, because every one of
 them was broken in this repo in a single sprint:
 
+- Chat prose is Thai from the first message, including text between tool calls in long multi-phase runs — P6–P9 (13 พ.ย. 2569) drifted to English mid-task and the user had to point at the rule.
 - The plan file was rewritten mid-sprint, so a remembered plan was a stale plan.
 - Phase 6 was built before Phase 1 — and the screens that stalled were exactly the ones
   Phase 1 was supposed to supply.
@@ -59,6 +60,8 @@ afterwards.
 
 **A "general request" diagram or example is the real flowless lifecycle (`REQUEST_TRANSITIONS`, e.g. BS-01), never an invented template.** A v2 template that no type uses, and FI05 curls offered for "curl แบบ uat-disbursement-open-api … ของ request ทั่วไป", were both rejected (27 Oct 2026): "แบบ X" means X's format, not X's content.
 
+**A curl asked for is one that fires as-is: real domain, real ids and `form_data` read from the type's `formSchema`, the route the caller's integration mode allows — and no header or field the route does not need, unless its purpose and the cost of leaving it out are stated.** DCRQ001 curls with an invented form, `localhost`, and an unexplained `Idempotency-Key: $(uuidgen)` were rejected (9 Nov 2026).
+
 **A gap in `source/` is reported, never filled.** The petty-cash fund and top-ups were invented from
 general accounting and shipped as if specified. Label every requirement `source` or `proposed` before
 asking or building on it.
@@ -75,6 +78,8 @@ work (pay, clear, close) is never added as steps of the request. Disbursement v1
 audit the gaps: rights, visibility, money, timers, notifications, external/MCP, live data, and the
 dynamic form (read `formData` through `x-bind`, never fixed keys). Then show a "now → new" table.
 
+**The item-by-item list of what a data change will touch goes in the plan file, not only in chat** (10 Nov 2026).
+
 **Never run `prisma format` on `schema.prisma`.** It realigns every model in the
 file (a 160-line addition became 773 changed lines). Format only the block you add.
 
@@ -89,12 +94,15 @@ say so explicitly in the PR rather than doing it quietly.
    frontend is convenience, never control. (ROLE-01)
 
 2. **Row visibility goes through one filter.** Lists, single reads, and
-   dashboard counts all build their `where` with `buildScopeWhere`. A screen
+   dashboard counts all build their `where` with the module's rule in
+   `libs/share/src/access/` (`visibleRequestsWhere`, `visibleOwnedWhere`,
+   `visibleSalesWhere`/`visibleLeadsWhere`, `visibleCustomersWhere`,
+   `visibleUsersWhere`). A screen
    that writes its own visibility condition is how a summary number and the
    rows behind it start disagreeing. (SCOPE-02)
 
 3. **The company boundary is absolute.** Every query is pinned to the active
-   company except scope `all`. Out-of-scope reads answer **404, not 403** — the
+   company. The one way across is declared below (system tenant access, P6). Out-of-scope reads answer **404, not 403** — the
    spec does not want existence disclosed. (SCOPE-03)
 
 4. **No hard deletes of transactional data.** Status columns and soft-delete
@@ -131,6 +139,24 @@ It is contained rather than excused:
   Saving it from the Roles page answers 422, which is the intended outcome.
 - it must not exist in production. If you find it there, delete the role row;
   nothing else depends on it.
+
+### The second declared exception: system tenant access (P6, user decision 12 พ.ย. 2569)
+
+SCOPE-03 says the company boundary is absolute. A person holding the system permission
+`system.tenant.read` (granted only through a `SystemUserRole`, never a company role) may
+enter any **active** company they are not a member of, from the company switcher, and
+**read and write** there. It is contained rather than excused:
+
+- they act with exactly that company's `admin` role — never their own grants, never
+  `approval.decide` or `request.sensitive.read` (§5.4 keeps them out of `admin`)
+- `PrincipalService.principalFor` is the one place that admits it: the entered company
+  joins `principal.companies` with `via: 'system'`, so `CompanyGuard`, `isCompanyMember`
+  and every module rule keep working unchanged; `enteredAsSystem(principal)` tells the two apart
+- every switch in writes `system.tenant.entered` (one row per entry, Q3); each write
+  afterwards carries the person as actor like any other
+- no chart position there: `orgUnitId` and every led/scoped unit list are empty
+
+A second way across the boundary is a decision to state here, like this one.
 
 **Adding a company? Re-run `yarn uat:seed`.** The role, the `UserRole` grant and
 the `UserCompany` membership are all per company (ROLE-04), and `uat:seed` writes
@@ -355,7 +381,9 @@ the Prisma failure went unnoticed.
    asks the key for `integration.request.read`, and `scope-rule.spec.ts` fails
    otherwise. Never add a scope named after a use case — a use case is a preset
    in `integration-presets.ts` that ticks existing scopes, not a new right.
-2. Filter every read through `buildScopeWhere`.
+2. Filter every read through the module's rule in `libs/share/src/access/` —
+   a new module states its owner columns once in `visibleOwnedWhere` (see
+   `docs/system-plane.md`).
 3. If it changes state, make it transactional and accept `Idempotency-Key`.
 4. Write the audit entry inside the same transaction as the change.
 5. Add a test named for the requirement code, plus a negative case for a user
@@ -488,6 +516,9 @@ own scope `integration.agent.record.update`. Nobody at the other end is a user. 
 only moves a record of the key's company from `processing` to `done`/`failed`, once:
 another company's id answers 404, a finished one 409. The leads it finds arrive
 through `crm/leads/intake` with `intake_data.agent_record_id`, not through this route.
+Closing a `lead.write_proposal` record makes CTD fetch its `proposal_url` — only from the
+connection's own host, after commit — into a `kind=proposal` Lead file (9 Nov 2026,
+`docs/lead-proposal.md`).
 An eleventh is again a decision to state here.
 
 **The eleventh: `crm/ai` sales — `leads/:id/emails`, `emails/:id`,
@@ -508,7 +539,22 @@ Lead's or deal's own address, never one the caller names; each company's
 mailbox (`mail_settings`, set on screen with the secret sealed; env `MAIL_*`
 for a company with no row) is read only for messages in threads it opened. A product with no standard price answers 422
 `CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
+Before quoting (13 Nov 2026, user decision), `emails/:id/assessment` reads the customer's reply
+for the product, the quantity and the answers to that product's own questions
+(`product_bundles.requirements`), keeps them on the Lead, and `emails/:id/requirement-request`
+asks for what is missing in the same thread — to whoever wrote that message, never an address the
+caller names. A product with no bundle or no standard price is not quoted and not asked about: the
+Lead's owner is told to go to Pricing or Pre-Sales.
 `docs/sales-email-flow.md`. A twelfth is again a decision to state here.
+
+**The twelfth: every GET in the company's name (12 Nov 2026, user decision).** A key
+bound to a company, whose integration has `app` mode on (or has no integration), may call
+any GET of an `@ActsForPerson` controller with no person header. `resolveCaller` then keeps
+the machine as the caller (`companyPrincipal`): each `integration.X` scope also grants `X`, and each
+`X.read` its `X.read.all`, so every module's own rule answers the whole key's company — SCOPE-03 still
+pins it. Masking still applies: user-service gives a service account the full `sensitiveFieldsAll`, and
+no machine scope unmasks one. Writes still need a person (400), and "mine" reads (`assistant/*`) come back
+empty. A thirteenth is again a decision to state here.
 
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
@@ -611,3 +657,6 @@ The domain rules most at risk of drifting are written and unit-tested:
 - `services/core-service/src/approvals/approval-chain.ts` (§8.1)
 - `services/core-service/src/crm/customer-state-machine.ts` (CM-04)
 - `services/core-service/src/crm/quotation-math.ts` (CD-76)
+
+- Before adding config rows through the web or API, read-only query the DB first (target user, company, existing rows, role permissions) so the write path is chosen from facts, not discovered by a 403.
+- Before a plan relies on a step outside this machine (server shell, another admin, console access), confirm with the user that someone can actually do it; plan only on access already proven.

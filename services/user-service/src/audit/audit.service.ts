@@ -66,8 +66,16 @@ export class AuditService {
     }
   }
 
-  async search(query: QueryAuditLogDto): Promise<Paginated<AuditLog>> {
+  /**
+   * `companyId` undefined = every company — only `/system/audit` passes that.
+   * The key is always present so the tenant guard sees the choice was made.
+   */
+  async search(
+    query: QueryAuditLogDto,
+    companyId: string | undefined,
+  ): Promise<Paginated<AuditLog>> {
     const where: Prisma.AuditLogWhereInput = {
+      companyId,
       ...(query.actor_id ? { actorId: query.actor_id } : {}),
       ...(query.event_type ? { eventType: query.event_type } : {}),
       ...(query.resource_type ? { resourceType: query.resource_type } : {}),

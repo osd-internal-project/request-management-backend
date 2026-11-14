@@ -62,9 +62,12 @@ export class IntegrationAdminService {
     private readonly calls: IntegrationCallRepository,
   ) {}
 
-  async list(actor: Principal): Promise<IntegrationRowDto[]> {
+  async list(
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<IntegrationRowDto[]> {
     const rows = (await this.integrations.findMany({
-      where: { companyId: actor.activeCompanyId },
+      where: { companyId: owner },
       include: WITH_COUNTS,
       orderBy: { createdAt: 'desc' },
     })) as IntegrationRow[];
@@ -74,10 +77,11 @@ export class IntegrationAdminService {
   async create(
     dto: CreateIntegrationDto,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<IntegrationRowDto> {
     const row = (await this.integrations.create({
       data: {
-        companyId: actor.activeCompanyId,
+        companyId: owner,
         name: dto.name.trim(),
         description: dto.description?.trim() || null,
         modes: [...new Set(dto.modes)],
@@ -90,7 +94,7 @@ export class IntegrationAdminService {
 
     await this.audit.record({
       eventType: 'admin.integration.created',
-      companyId: actor.activeCompanyId,
+      companyId: owner,
       ...auditActor(actor),
       resourceType: 'integration',
       resourceId: row.id,
@@ -103,8 +107,9 @@ export class IntegrationAdminService {
     id: string,
     dto: UpdateIntegrationDto,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<IntegrationRowDto> {
-    const found = await this.owned(id, actor);
+    const found = await this.owned(id, actor, owner);
     const row = (await this.integrations.update({
       where: { id },
       data: {
@@ -125,7 +130,7 @@ export class IntegrationAdminService {
 
     await this.audit.record({
       eventType: 'admin.integration.updated',
-      companyId: actor.activeCompanyId,
+      companyId: owner,
       ...auditActor(actor),
       resourceType: 'integration',
       resourceId: id,
@@ -136,8 +141,13 @@ export class IntegrationAdminService {
   }
 
   /** คำขอล่าสุดของระบบภายนอกนี้ — ใหม่สุดก่อน, เก็บตาม retention ของ AI audit. */
-  async listCalls(id: string, query: PageQueryDto, actor: Principal) {
-    await this.owned(id, actor);
+  async listCalls(
+    id: string,
+    query: PageQueryDto,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ) {
+    await this.owned(id, actor, owner);
     const where = { integrationId: id };
     const { skip, take } = toSkipTake(query);
     const [rows, total] = await Promise.all([
@@ -156,9 +166,13 @@ export class IntegrationAdminService {
    * integration ของบริษัทผู้เรียก — ของบริษัทอื่นตอบ 404 (SCOPE-03).
    * ใช้ตอนผูก key / webhook เข้ากับ integration ด้วย.
    */
-  async owned(id: string, actor: Principal): Promise<IntegrationRow> {
+  async owned(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<IntegrationRow> {
     const found = (await this.integrations.findFirst({
-      where: { id, companyId: actor.activeCompanyId },
+      where: { id, companyId: owner },
     })) as IntegrationRow | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบระบบภายนอกที่ระบุ');
     return found;
@@ -168,7 +182,11 @@ export class IntegrationAdminService {
    * key ที่ออกโดยไม่ระบุ integration ได้ integration ของตัวเอง — หน้าจอ api-keys
    * เดิมยังไม่ส่ง `integration_id`. ปิด `X-Acting-User` ตามค่าเริ่มต้นของ key ใหม่.
    */
-  async createForKey(name: string, actor: Principal): Promise<string> {
+  async createForKey(
+    name: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<string> {
     const row = await this.create({ name, modes: ['app', 'delegated'] }, actor);
     return row.id;
   }

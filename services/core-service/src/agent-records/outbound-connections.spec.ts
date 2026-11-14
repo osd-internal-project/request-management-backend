@@ -1,9 +1,10 @@
+import { keyringFromEnv } from '@request-management/share';
 import { sealSecret } from '../pm/config-rules';
 import { splitVuvagentUrl, timeoutMinutesOf } from './outbound-connection';
 import { OutboundConnectionsAdminService } from './outbound-connections-admin.service';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
-const SECRET = 'test-config-secret';
+const SECRET = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-secret' });
 const actor = {
   userId: 'admin-1',
   activeCompanyId: 'osd',
@@ -93,9 +94,11 @@ describe('VuvagentClient', () => {
     ];
     expect(url).toBe('https://1.1.1.1/v1/endpoints/ep_192af84b');
     expect(init.headers['x-api-key']).toBe('sk-aily-real');
+    expect(init.headers['x-organization-id']).toBeUndefined();
     expect(JSON.parse(init.body)).toEqual({
       agent_record_id: 'rec-1',
       topic: 'โลจิสติกส์',
+      organization_id: 'osd',
     });
   });
 
@@ -168,7 +171,11 @@ describe('VuvagentClient', () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0] as [string, { body: string }])[1].body,
     ) as unknown;
-    expect(body).toEqual({ agent_record_id: null, connection_test: true });
+    expect(body).toEqual({
+      agent_record_id: null,
+      connection_test: true,
+      organization_id: 'osd',
+    });
     expect(result).toMatchObject({
       ok: false,
       status: 401,
@@ -351,6 +358,89 @@ describe('OutboundConnectionsAdminService', () => {
         payload_fields: ['agent_record_id', 'lead_id', 'focus'],
         default_timeout_minutes: 30,
       },
+      {
+        action: 'lead.suggest_products',
+        vendor: 'vuvagent',
+        payload_fields: ['agent_record_id', 'lead_id'],
+        default_timeout_minutes: 10,
+      },
+      {
+        action: 'lead.write_proposal',
+        vendor: 'vuvagent',
+        payload_fields: ['agent_record_id', 'lead_id', 'product'],
+        default_timeout_minutes: 30,
+      },
     ]);
+  });
+});
+
+describe('VuvagentClient.download', () => {
+  const fetchMock = jest.fn();
+  const connections = {
+    findFirst: jest
+      .fn()
+      .mockResolvedValue(row({ action: 'lead.write_proposal' })),
+  };
+  const headers = (values: Record<string, string>) => ({
+    get: (name: string) => values[name.toLowerCase()] ?? null,
+  });
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as never;
+  });
+
+  it("fetches a link on the connection's own host, generic type read as .docx", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: headers({
+        'content-type': 'application/octet-stream',
+        'content-disposition': 'attachment; filename="D-DEBT.docx"',
+      }),
+      arrayBuffer: () => Promise.resolve(new TextEncoder().encode('PK').buffer),
+    });
+    const client = new VuvagentClient(connections as never, config() as never);
+
+    const file = await client.download(
+      'osd',
+      'lead.write_proposal',
+      'https://1.1.1.1/v1/files/file_1/download?t=abc',
+      1024,
+    );
+
+    expect(file).toEqual({
+      fileName: 'D-DEBT.docx',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: Buffer.from('PK'),
+    });
+  });
+
+  it('refuses a link on another host without calling out', async () => {
+    const client = new VuvagentClient(connections as never, config() as never);
+
+    await expect(
+      client.download(
+        'osd',
+        'lead.write_proposal',
+        'https://8.8.8.8/file.docx',
+        1024,
+      ),
+    ).rejects.toBeInstanceOf(VuvagentDispatchError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a file larger than the limit', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: headers({ 'content-length': '2048' }),
+      arrayBuffer: jest.fn(),
+    });
+    const client = new VuvagentClient(connections as never, config() as never);
+
+    await expect(
+      client.download('osd', 'lead.write_proposal', 'https://1.1.1.1/f', 1024),
+    ).rejects.toThrow('ไฟล์ใหญ่เกิน');
   });
 });

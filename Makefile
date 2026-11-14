@@ -86,8 +86,9 @@ smoke:
 	docker exec rm-smoke-db createdb -U postgres lake
 	DATABASE_URL=$(SMOKE_DB_URL) yarn prisma:migrate:deploy
 	DATABASE_URL=$(SMOKE_DB_URL) yarn prisma:seed
-	CORE_SMOKE_DB_URL=$(SMOKE_DB_URL) CORE_SMOKE_LAKE_URL=$(SMOKE_LAKE_URL) yarn workspace @request-management/core-service test:smoke && \
-	  EXTERNAL_SMOKE_DB_URL=$(SMOKE_DB_URL) yarn workspace @request-management/external-service test:scope; \
+	# P9: a query on a company table without companyId fails here, not in prod's log.
+	TENANT_GUARD=throw CORE_SMOKE_DB_URL=$(SMOKE_DB_URL) CORE_SMOKE_LAKE_URL=$(SMOKE_LAKE_URL) yarn workspace @request-management/core-service test:smoke && \
+	  TENANT_GUARD=throw EXTERNAL_SMOKE_DB_URL=$(SMOKE_DB_URL) yarn workspace @request-management/external-service test:scope; \
 	  status=$$?; docker rm -f rm-smoke-db >/dev/null; exit $$status
 
 ## clean       — ลบ build output ทั้งหมด

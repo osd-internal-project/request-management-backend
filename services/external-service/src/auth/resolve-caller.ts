@@ -1,6 +1,7 @@
 import {
   AppError,
   COMPANY_HEADER,
+  isPermission,
   type Principal,
   type RequestWithPrincipal,
 } from '@request-management/share';
@@ -62,7 +63,10 @@ export async function resolveCaller(
 
   const key = getApiKey(request);
   const policy = key?.integration;
-  const company = headerOf(request, COMPANY_HEADER) || undefined;
+  // A key bound to a company speaks for that company; the header only matters
+  // for an unbound key (RemotePrincipalGuard has already refused a mismatch).
+  const company =
+    key?.companyId ?? (headerOf(request, COMPANY_HEADER) || undefined);
 
   if (userToken) {
     return fromUserToken(
@@ -72,6 +76,16 @@ export async function resolveCaller(
       company,
       principals,
     );
+  }
+
+  // A company key reads without a person (user decision 12 พ.ย. 2569, AGENTS.md "The twelfth").
+  if (
+    !email &&
+    request.method === 'GET' &&
+    key?.companyId &&
+    (!policy || policy.modes.includes('app'))
+  ) {
+    return companyPrincipal(caller);
   }
 
   if (!email) {
@@ -110,6 +124,12 @@ export async function resolveCaller(
     company,
     key?.scopes ?? [],
   );
+
+  // Same rule as X-User-Token: a person outside the key's company is not found.
+  if (key?.companyId && actingUser.activeCompanyId !== key.companyId) {
+    throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ในบริษัทของ API key นี้');
+  }
+
   return assertPlaced(actingUser, ACTING_USER_HEADER, email);
 }
 
@@ -151,6 +171,22 @@ async function fromUserToken(
   }
 
   return assertPlaced(person, USER_TOKEN_HEADER, person.email ?? person.userId);
+}
+
+/**
+ * The key reading as its company: each `integration.X` scope also grants `X`, so the
+ * route's `@ActingPermissions` passes, and each `X.read` its `X.read.all`, so every
+ * module's own rule answers the whole company (still pinned to the key's company).
+ */
+export function companyPrincipal(machine: Principal): Principal {
+  const granted = new Set<string>(machine.permissions);
+  for (const scope of machine.permissions) {
+    if (!scope.startsWith('integration.')) continue;
+    const person = scope.slice('integration.'.length);
+    granted.add(person);
+    if (person.endsWith('.read')) granted.add(`${person}.all`);
+  }
+  return { ...machine, permissions: [...granted].filter(isPermission) };
 }
 
 function assertPlaced(

@@ -1,3 +1,4 @@
+import { RolesService } from '../roles/roles.service';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AppError, PolicyGuard, setPrincipal } from '@request-management/share';
@@ -31,7 +32,9 @@ describe('Keycloak login only — token roles grant nothing', () => {
   */
   function serviceWith(manualRoles: unknown[] = []) {
     const users = {
-      upsertFromClaims: jest.fn().mockResolvedValue(USER),
+      upsertFromClaims: jest
+        .fn()
+        .mockResolvedValue({ user: USER, relinkedFrom: null }),
       findActiveByEmail: jest.fn().mockResolvedValue(USER),
     };
     const org = {
@@ -53,6 +56,14 @@ describe('Keycloak login only — token roles grant nothing', () => {
     };
     const roles = {
       rolesForUser: jest.fn().mockResolvedValue(manualRoles),
+      effectivePermissions: jest.fn(
+        (
+          _u: string,
+          _c: string,
+          held: Parameters<typeof RolesService.permissionsOf>[0],
+        ) => Promise.resolve(RolesService.permissionsOf(held)),
+      ),
+      systemPermissionsOf: jest.fn().mockResolvedValue([]),
     };
     const policy = {
       resolveVisibleSensitiveFields: jest.fn().mockResolvedValue([]),
@@ -66,6 +77,7 @@ describe('Keycloak login only — token roles grant nothing', () => {
       roles as never,
       policy as never,
       config as never,
+      { record: jest.fn() } as never,
     );
 
     return { service, roles };
@@ -148,11 +160,26 @@ describe('internal/principal/resolve-by-email — through the real PolicyGuard',
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      {
+        resolveVisibleSensitiveFields: jest.fn().mockResolvedValue([]),
+        listAllSensitiveFieldKeys: jest
+          .fn()
+          .mockResolvedValue(['customer.taxId']),
+      } as never,
       config as never,
+      { record: jest.fn() } as never,
     );
     return { service };
   }
+
+  it('masks a machine like anyone without the sensitive permission', async () => {
+    const machine = await serviceAccount('service-account-request-form', [
+      'integration.crm.customer.read',
+    ]);
+
+    expect(machine.sensitiveFieldsAll).toEqual(['customer.taxId']);
+    expect(machine.sensitiveFieldsVisible).toEqual([]);
+  });
 
   const guard = new PolicyGuard(new Reflector());
 

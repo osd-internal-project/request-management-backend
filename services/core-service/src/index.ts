@@ -58,6 +58,7 @@ export { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 export { CrmModule } from './crm/crm.module';
 // งานขายอัตโนมัติ (5 พ.ย. 2569) — sales mailbox for OSD Workflow's routes
 export { MailModule } from './mail/mail.module';
+export { SalesAutomationService } from './mail/sales-automation.service';
 export { LeadFilesModule } from './crm/lead-files.module';
 export {
   LeadFilesService,
@@ -70,12 +71,14 @@ export {
   CreateStandardQuotationDto,
   SendLeadEmailDto,
   SendQuotationEmailDto,
+  SendRequirementRequestDto,
 } from './mail/dto/sales-mail.dto';
 export { CustomersService } from './crm/customers.service';
 export { CustomerImportService } from './crm/customer-import.service';
 export { CrmAdminService } from './crm/crm-admin.service';
 export { LeadsService } from './crm/leads.service';
 export { LeadImportService } from './crm/lead-import.service';
+export { LeadContactsService } from './crm/lead-contacts.service';
 export { LeadStatusService } from './crm/lead-status.service';
 export { LeadIntakeService } from './crm/lead-intake.service';
 // CD-269 — a campaign's public form and the Lead Ads webhook

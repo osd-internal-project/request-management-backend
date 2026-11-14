@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { openSecret } from '../pm/config-rules';
@@ -136,7 +137,7 @@ export class MailClientsService implements OnModuleInit {
     if (row.mode !== 'graph') {
       return { client: null, mode: 'off', source, problem: null };
     }
-    const secretKey = this.config.get<string>('projectConfig.secret');
+    const secretKey = this.config.get<SecretKeyring>('projectConfig.secret');
     const secret =
       row.clientSecretEnc && secretKey
         ? openSecret(row.clientSecretEnc, secretKey)

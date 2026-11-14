@@ -21,6 +21,7 @@ export const ErrorCatalog = {
 
   // --- §11.9 business codes ---
   COMPANY_FORBIDDEN: HttpStatus.FORBIDDEN,
+  USER_SUSPENDED: HttpStatus.FORBIDDEN,
   REQ_FIELD_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   REQ_DOC_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   REQ_STATE_INVALID: HttpStatus.CONFLICT,

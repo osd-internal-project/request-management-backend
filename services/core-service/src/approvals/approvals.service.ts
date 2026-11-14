@@ -8,6 +8,7 @@ import {
   decidableStepWhere,
   PrismaTransactionService,
   paginated,
+  reachableCaseWhere,
   toSkipTake,
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
@@ -1498,6 +1499,14 @@ export class ApprovalsService {
    * delegations without reaching into the delegation table themselves — the
    * "อนุมัติ" tab has to count the same rows this module lets them decide.
    */
+  /** SCOPE-02 — the cases one person may open; `reachableCaseWhere` is the rule. */
+  private async reachable(
+    actor: Principal,
+  ): Promise<Prisma.ApprovalCaseWhereInput> {
+    const subject = accessSubject(actor, await this.coveringFor(actor));
+    return reachableCaseWhere(subject) as Prisma.ApprovalCaseWhereInput;
+  }
+
   coveringFor(actor: Principal): Promise<string[]> {
     return this.delegations.delegatorsFor(
       actor.activeCompanyId,
@@ -1559,6 +1568,14 @@ export class ApprovalsService {
       throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
     }
 
+    const reachable = await this.cases.countWhere({
+      id: caseId,
+      ...(await this.reachable(actor)),
+    });
+    if (reachable === 0) {
+      throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
+    }
+
     return found;
   }
 
@@ -1570,6 +1587,9 @@ export class ApprovalsService {
       companyId: actor.activeCompanyId,
       status: { not: 'pending' },
       ...(subjectType ? { subjectType } : {}),
+      ...(actor.permissions.includes('approval.history.read.all')
+        ? {}
+        : await this.reachable(actor)),
     };
 
     const [rows, total] = await Promise.all([

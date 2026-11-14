@@ -33,8 +33,10 @@ import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { ErpMockRetirementService } from './erp-mock-retirement.service';
 import { ErpSyncAdminService } from './erp-sync-admin.service';
 import { ProductCatalogService } from './product-catalog.service';
+import { ProductBundlesService } from './product-bundles.service';
 import {
   CompanyRepository,
+  ProductBundleRepository,
   ProductPriceRepository,
   VendorCostRepository,
   ProductRepository,
@@ -60,6 +62,7 @@ import {
   OpportunityProductRepository,
   OpportunityRepository,
   LeadActivityRepository,
+  LeadContactRepository,
   LeadRepository,
   OpportunityActivityRepository,
   NegotiationRoundRepository,
@@ -100,6 +103,7 @@ import { VendorCostService } from './vendor-cost.service';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
+import { LeadClosingService } from './lead-closing.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
@@ -174,6 +178,7 @@ import { SalesTargetApprovalSyncService } from './sales-target-approval-sync.ser
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
+import { LeadContactsService } from './lead-contacts.service';
 import { LeadIntakeService } from './lead-intake.service';
 import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
 import { CampaignEventsService } from './campaign-events.service';
@@ -229,6 +234,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ProductPriceRepository,
     CompanyRepository,
     ProductCatalogService,
+    // ชุดรายการของ product (12 พ.ย. 2569)
+    ProductBundleRepository,
+    ProductBundlesService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
@@ -265,7 +273,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     VendorCostRepository,
     LeadsService,
     LeadStatusService,
+    LeadClosingService,
     LeadImportService,
+    LeadContactsService,
+    LeadContactRepository,
     LeadIntakeService,
     // CD-269 — one screening for every Lead from outside
     CampaignLeadIntakeService,
@@ -367,6 +378,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadStatusService,
     LeadsService,
     LeadImportService,
+    LeadContactsService,
     LeadIntakeService,
     CampaignLeadIntakeService,
     CampaignEventsService,
@@ -410,6 +422,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     VendorCostService,
     QuotationPrintService,
     // งานขายอัตโนมัติ (MailModule) — the email rows hang off these
+    // the sales-automation checklist reads a deal's quotations (11 พ.ย. 2569)
+    QuotationRepository,
     LeadRepository,
     LeadActivityRepository,
     OpportunityRepository,
@@ -419,6 +433,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     IntegrationSyncJobRepository,
     CustomerErpSyncService,
     ProductCatalogService,
+    // ชุดรายการของ product — Pricing's screen and the sales automation
+    ProductBundlesService,
   ],
 })
 export class CrmModule {}
