@@ -184,7 +184,7 @@ export class RequestApiService {
   async list(actor: Principal, query: ExternalListRequestsDto) {
     const page = await this.requests.list(actor, {
       ...query,
-      view: query.view ?? 'involved',
+      view: defaultView(actor, query.view),
     });
 
     return {
@@ -206,7 +206,7 @@ export class RequestApiService {
    */
   async summary(actor: Principal, query: ExternalSummaryQueryDto) {
     const covering = await this.approvals.coveringFor(actor);
-    const filters = { ...query, view: query.view ?? 'involved' };
+    const filters = { ...query, view: defaultView(actor, query.view) };
 
     const [counts, overdue] = await Promise.all([
       this.requestRows.countByStatus(
@@ -631,6 +631,15 @@ export class RequestApiService {
  */
 function performable(actions: readonly string[] = []): string[] {
   return actions.filter((action) => action !== 'create_child');
+}
+
+/**
+ * A person's default queue is the requests they are involved in. A company key
+ * with no person (AGENTS.md "The twelfth") is involved in none, so it keeps the
+ * module's own rule — the whole key's company — unless it asks for a view.
+ */
+function defaultView<V>(actor: Principal, view: V | undefined): V | 'involved' | undefined {
+  return view ?? (actor.isServiceAccount ? undefined : 'involved');
 }
 
 function describe(spec: ActionSpec) {

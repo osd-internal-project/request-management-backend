@@ -312,7 +312,10 @@ export class AssistantService {
   async summary(actor: Principal) {
     const [requests, approvals, sales, closing, projects, service] =
       await Promise.all([
-        has(actor, 'request.read') ? this.requestApi.summary(actor, {}) : null,
+        // Explicit: a company key's default is the whole company, and this is "mine".
+        has(actor, 'request.read')
+          ? this.requestApi.summary(actor, { view: 'involved' })
+          : null,
         has(actor, 'approval.decide')
           ? this.approvals
               .inbox(actor, { page: 1, page_size: 1 })
