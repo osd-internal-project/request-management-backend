@@ -179,6 +179,30 @@ describe('resolveCaller', () => {
       expect(caller.isServiceAccount).toBe(true);
     });
 
+    it('MCP: the HTTP request is a POST, the GET tool it carries reads as the company', async () => {
+      const mcpPost = Object.assign(
+        requestWith({}, { companyId: 'osd', integration: APP }),
+        { method: 'POST' },
+      );
+
+      const caller = await resolveCaller(
+        mcpPost,
+        COMPANY_MACHINE,
+        principalsReturning() as never,
+        'GET',
+      );
+      expect(caller.activeCompanyId).toBe('osd');
+
+      await expect(
+        resolveCaller(
+          mcpPost,
+          COMPANY_MACHINE,
+          principalsReturning() as never,
+          'POST',
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+
     it.each([
       [
         'a write',

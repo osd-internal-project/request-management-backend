@@ -27,11 +27,13 @@ export const USER_TOKEN_HEADER_LABEL = 'X-User-Token';
  * - API key + `X-Acting-User` → คนตามอีเมล เฉพาะ integration ที่เปิดโหมดเดิมไว้
  *
  * @param caller principal ที่ guard ระดับ global resolve จาก bearer แล้ว
+ * @param method HTTP method ของงานนี้ — MCP ส่ง method ของ tool เพราะ request จริงเป็น POST เสมอ
  */
 export async function resolveCaller(
   request: RequestWithPrincipal,
   caller: Principal,
   principals: RemotePrincipalService,
+  method: string = request.method,
 ): Promise<Principal> {
   const email = headerOf(request, ACTING_USER_HEADER);
   const userToken = headerOf(request, USER_TOKEN_HEADER);
@@ -81,7 +83,7 @@ export async function resolveCaller(
   // A company key reads without a person (user decision 12 พ.ย. 2569, AGENTS.md "The twelfth").
   if (
     !email &&
-    request.method === 'GET' &&
+    method === 'GET' &&
     key?.companyId &&
     (!policy || policy.modes.includes('app'))
   ) {
