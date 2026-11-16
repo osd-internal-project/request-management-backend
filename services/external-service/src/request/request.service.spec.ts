@@ -91,6 +91,47 @@ describe('G-02 — the summary counts what the list would show (SCOPE-02)', () =
     });
   });
 
+  it('leaves a company key with no person on the whole company (The twelfth)', async () => {
+    const { requests, requestRows, service } = build();
+
+    requestRows.countByStatus.mockResolvedValue({});
+    requestRows.countWhere.mockResolvedValue(0);
+    requests.list.mockResolvedValue({ data: [], total: 0 });
+    const machine = principal({ isServiceAccount: true });
+
+    await service.summary(machine, {});
+    await service.list(machine, { page: 1, page_size: 20 });
+
+    expect(requests.scopedWhere.mock.calls[0][1]).toMatchObject({
+      view: undefined,
+    });
+    expect(requests.list.mock.calls[0][1]).toMatchObject({ view: undefined });
+  });
+
+  it('still honours a view a company key asks for', async () => {
+    const { requests, service } = build();
+
+    requests.list.mockResolvedValue({ data: [], total: 0 });
+
+    await service.list(principal({ isServiceAccount: true }), {
+      page: 1,
+      page_size: 20,
+      view: 'created',
+    });
+
+    expect(requests.list.mock.calls[0][1]).toMatchObject({ view: 'created' });
+  });
+
+  it('keeps a person on their own involvement in the list too', async () => {
+    const { requests, service } = build();
+
+    requests.list.mockResolvedValue({ data: [], total: 0 });
+
+    await service.list(principal(), { page: 1, page_size: 20 });
+
+    expect(requests.list.mock.calls[0][1]).toMatchObject({ view: 'involved' });
+  });
+
   /*
     The reason `open_total` exists at all. "งานค้างกี่ใบ" is not "how many rows
     are there" — a closed request is still counted in the breakdown, because a
