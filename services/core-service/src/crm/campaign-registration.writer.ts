@@ -26,12 +26,21 @@ export class CampaignRegistrationWriter {
   /**
    * A seat while there is one, else the waitlist. The same person (e-mail or
    * phone) registering again gets their registration back, not a second one.
+   * When it is the e-mail that matches, what they typed this time replaces
+   * what the registration held — the form is how they correct it. Their seat
+   * or place on the waitlist does not move. A phone-only match changes
+   * nothing: a shared office number is not proof it is the same person.
    */
   async register(
     event: { id: string; companyId: string; eventCapacity: number | null },
     input: RegistrationInput,
     options: { walkIn?: boolean; actorId?: string | null; now?: Date } = {},
-  ): Promise<{ id: string; status: string; repeat: boolean }> {
+  ): Promise<{
+    id: string;
+    status: string;
+    repeat: boolean;
+    updated: boolean;
+  }> {
     const now = options.now ?? new Date();
     const wanted = {
       email: emailKey(input.email),
@@ -47,22 +56,54 @@ export class CampaignRegistrationWriter {
         email: string | null;
         phone: string | null;
       }[];
-      const same = rows.find((row) => samePerson(wanted, row));
+      // the e-mail match first: that is the one whose details get replaced
+      const byEmail = wanted.email
+        ? rows.find((row) => emailKey(row.email) === wanted.email)
+        : undefined;
+      const same = byEmail ?? rows.find((row) => samePerson(wanted, row));
       if (same) {
+        // a field left empty this time keeps what was there
+        const details = byEmail
+          ? {
+              contactName: input.contactName,
+              ...(input.company ? { company: input.company } : {}),
+              ...(input.position ? { position: input.position } : {}),
+              ...(input.phone ? { phone: input.phone } : {}),
+              ...(input.email ? { email: input.email } : {}),
+              ...(input.need ? { need: input.need } : {}),
+            }
+          : null;
         if (options.walkIn) {
           // they registered and came — the walk-in is the check-in
           await this.registrations.update({
             where: { id: same.id },
             data: {
+              ...details,
               status: 'registered',
               attendedAt: now,
               attendedBy: options.actorId ?? null,
               updatedBy: options.actorId ?? null,
             },
           });
-          return { id: same.id, status: 'registered', repeat: true };
+          return {
+            id: same.id,
+            status: 'registered',
+            repeat: true,
+            updated: details !== null,
+          };
         }
-        return { id: same.id, status: same.status, repeat: true };
+        if (details) {
+          await this.registrations.update({
+            where: { id: same.id },
+            data: { ...details, updatedBy: options.actorId ?? null },
+          });
+        }
+        return {
+          id: same.id,
+          status: same.status,
+          repeat: true,
+          updated: details !== null,
+        };
       }
     }
 
@@ -92,6 +133,6 @@ export class CampaignRegistrationWriter {
       },
       select: { id: true },
     })) as { id: string };
-    return { id: row.id, status, repeat: false };
+    return { id: row.id, status, repeat: false, updated: false };
   }
 }

@@ -68,6 +68,7 @@ describe('CD-270 registration writer', () => {
       id: 'reg-new',
       status: 'registered',
       repeat: false,
+      updated: false,
     });
     const full = writer([], 2);
     await expect(full.writer.register(event, input)).resolves.toMatchObject({
@@ -83,8 +84,58 @@ describe('CD-270 registration writer', () => {
       id: 'reg-old',
       status: 'waitlisted',
       repeat: true,
+      updated: false,
     });
     expect(repo.create).not.toHaveBeenCalled();
+    // a phone-only match: nothing they typed is written over the old one
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it('the same e-mail again replaces the details and keeps the seat', async () => {
+    const { writer: w, repo } = writer([
+      {
+        id: 'reg-phone',
+        status: 'registered',
+        email: null,
+        phone: '0899999999',
+      },
+      {
+        id: 'reg-old',
+        status: 'waitlisted',
+        email: 'Somchai@Example.com',
+        phone: '0811111111',
+      },
+    ]);
+    await expect(
+      w.register(event, {
+        ...input,
+        contactName: 'สมชาย ใจดี',
+        company: 'บริษัท ใหม่ จำกัด',
+        phone: '089-999-9999',
+        email: ' somchai@example.com',
+      }),
+    ).resolves.toEqual({
+      id: 'reg-old',
+      status: 'waitlisted',
+      repeat: true,
+      updated: true,
+    });
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(repo.update).toHaveBeenCalledTimes(1);
+    const call = (repo.update.mock.calls as unknown[][])[0][0] as {
+      where: unknown;
+      data: Record<string, unknown>;
+    };
+    expect(call.where).toEqual({ id: 'reg-old' });
+    expect(call.data).toMatchObject({
+      contactName: 'สมชาย ใจดี',
+      company: 'บริษัท ใหม่ จำกัด',
+      phone: '089-999-9999',
+    });
+    // left empty this time: what was there stays; the seat is not touched
+    expect(call.data).not.toHaveProperty('position');
+    expect(call.data).not.toHaveProperty('need');
+    expect(call.data).not.toHaveProperty('status');
   });
 
   it('a walk-in is in the room: seated and checked in, even when full', async () => {
