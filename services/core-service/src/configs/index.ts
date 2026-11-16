@@ -375,6 +375,13 @@ export default () => ({
       process.env.AI_AUDIT_SWEEP_INTERVAL_MS ?? 86_400_000,
     ),
   },
+  /** D-Callcenter Workspace embed in the phone panel; the key never leaves this server. */
+  dcallWorkspace: {
+    gatewayUrl: process.env.DCALL_GATEWAY_URL ?? 'https://dcall-v2.osd.co.th',
+    workspaceId: process.env.DCALL_WORKSPACE_ID,
+    key: process.env.DCALL_WORKSPACE_KEY,
+    timeoutMs: Number(process.env.DCALL_TIMEOUT_MS ?? 10000),
+  },
   /** CD-16 AI SMART */
   smart: {
     /** mock (default) | off — real connectors arrive with their providers. */

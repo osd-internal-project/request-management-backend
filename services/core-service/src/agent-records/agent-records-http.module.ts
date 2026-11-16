@@ -5,7 +5,10 @@ import {
   LeadFindController,
 } from './agent-records.controller';
 import { AgentRecordTimeoutService } from './agent-record-timeout.service';
-import { OutboundConnectionsAdminController } from './outbound-connections-admin.controller';
+import {
+  OutboundConnectionsAdminController,
+  SystemOutboundConnectionsController,
+} from './outbound-connections-admin.controller';
 import { OutboundConnectionsAdminService } from './outbound-connections-admin.service';
 
 /** The screens' routes; internal port only (see `src/index.ts`). */
@@ -15,6 +18,7 @@ import { OutboundConnectionsAdminService } from './outbound-connections-admin.se
     AgentRecordsController,
     LeadFindController,
     OutboundConnectionsAdminController,
+    SystemOutboundConnectionsController,
   ],
   // the sweep sits here so only core-service runs it, not external-service
   providers: [OutboundConnectionsAdminService, AgentRecordTimeoutService],

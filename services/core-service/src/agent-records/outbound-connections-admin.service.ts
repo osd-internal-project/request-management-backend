@@ -24,7 +24,7 @@ import type {
 
 interface ConnectionRow {
   id: string;
-  companyId: string;
+  companyId: string | null;
   integrationId: string;
   vendor: string;
   /** null only on a row the per-action migration could not place; never listed */
@@ -66,11 +66,12 @@ export class OutboundConnectionsAdminService {
   async list(
     integrationId: string,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<OutboundConnectionRowDto[]> {
-    await this.integrations.owned(integrationId, actor);
+    await this.integrations.owned(integrationId, actor, owner);
     const rows = (await this.connections.findMany({
       where: {
-        companyId: actor.activeCompanyId,
+        companyId: owner,
         integrationId,
         action: { not: null },
       },
@@ -82,16 +83,19 @@ export class OutboundConnectionsAdminService {
   async create(
     dto: CreateOutboundConnectionDto,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<OutboundConnectionRowDto> {
     const integration = await this.integrations.owned(
       dto.integration_id,
       actor,
+      owner,
     );
     await this.assertUrl(dto.base_url);
     const action = dto.action as AgentAction; // `@IsIn(ACTIONS)` narrowed it
 
     const taken = await this.connections.findFirst({
-      where: { companyId: actor.activeCompanyId, action },
+      // แถวกลางไม่มี unique ใน DB (NULL ไม่ซ้ำกัน) — ตรงนี้คือที่กันซ้ำ
+      where: { companyId: owner, action },
       select: { id: true },
     });
     if (taken) {
@@ -104,7 +108,7 @@ export class OutboundConnectionsAdminService {
 
     const row = (await this.connections.create({
       data: {
-        companyId: actor.activeCompanyId,
+        companyId: owner,
         integrationId: integration.id,
         vendor: AGENT_ACTIONS[action].vendor,
         action,
@@ -115,7 +119,7 @@ export class OutboundConnectionsAdminService {
         createdBy: actor.userId,
       },
     })) as ConnectionRow;
-    await this.record('created', row, actor);
+    await this.record('created', row, actor, owner);
     return toRow(row);
   }
 
@@ -123,8 +127,9 @@ export class OutboundConnectionsAdminService {
     id: string,
     dto: UpdateOutboundConnectionDto,
     actor: Principal,
+    owner: string | null = actor.activeCompanyId,
   ): Promise<OutboundConnectionRowDto> {
-    await this.owned(id, actor);
+    await this.owned(id, owner);
     if (dto.base_url !== undefined) await this.assertUrl(dto.base_url);
 
     const row = (await this.connections.update({
@@ -141,15 +146,19 @@ export class OutboundConnectionsAdminService {
         ...(dto.active !== undefined && { active: dto.active }),
       },
     })) as ConnectionRow;
-    await this.record('updated', row, actor, {
+    await this.record('updated', row, actor, owner, {
       keyChanged: dto.api_key !== undefined,
     });
     return toRow(row);
   }
 
   /** `x-api-key` ปัจจุบัน — ทุกครั้งที่ดูลง audit (ไม่มีตัว key ในนั้น). */
-  async revealKey(id: string, actor: Principal): Promise<{ api_key: string }> {
-    const found = await this.owned(id, actor);
+  async revealKey(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<{ api_key: string }> {
+    const found = await this.owned(id, owner);
     const apiKey = openSecret(found.secretEnc, this.sealKey());
     if (apiKey === null) {
       throw new AppError(
@@ -157,21 +166,39 @@ export class OutboundConnectionsAdminService {
         'ถอดรหัส x-api-key ไม่ได้ — CONFIG_SECRET_KEY อาจถูกเปลี่ยน ให้ใส่ key ใหม่',
       );
     }
-    await this.record('key_revealed', found, actor);
+    await this.record('key_revealed', found, actor, owner);
     return { api_key: apiKey };
   }
 
   /** Calls the vendor for real — the result is shown, and audited without the key. */
-  async test(id: string, actor: Principal): Promise<ConnectionTestResultDto> {
-    const found = await this.owned(id, actor);
+  async test(
+    id: string,
+    actor: Principal,
+    owner: string | null = actor.activeCompanyId,
+  ): Promise<ConnectionTestResultDto> {
+    const found = await this.owned(id, owner);
     const result = await this.vuvagent.test(found);
-    await this.record('tested', found, actor, { ok: result.ok });
+    await this.record('tested', found, actor, owner, { ok: result.ok });
     return result;
   }
 
-  private async owned(id: string, actor: Principal): Promise<ConnectionRow> {
+  /** บริษัทเจ้าของแถว — ให้ route ของระบบเรียก method เดิมด้วย owner ที่ถูกต้อง */
+  async ownerOf(id: string): Promise<string | null> {
     const found = (await this.connections.findFirst({
-      where: { id, companyId: actor.activeCompanyId, action: { not: null } },
+      // ระดับระบบ: ทุกบริษัทโดยตั้งใจ — key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+      where: { id, companyId: undefined, action: { not: null } },
+      select: { companyId: true },
+    })) as { companyId: string | null } | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบการเชื่อมต่อที่ระบุ');
+    return found.companyId;
+  }
+
+  private async owned(
+    id: string,
+    owner: string | null,
+  ): Promise<ConnectionRow> {
+    const found = (await this.connections.findFirst({
+      where: { id, companyId: owner, action: { not: null } },
     })) as ConnectionRow | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบการเชื่อมต่อที่ระบุ');
     return found;
@@ -198,11 +225,12 @@ export class OutboundConnectionsAdminService {
     what: 'created' | 'updated' | 'key_revealed' | 'tested',
     row: ConnectionRow,
     actor: Principal,
+    owner: string | null,
     extra: Record<string, boolean> = {},
   ) {
     return this.audit.record({
       eventType: `admin.outbound_connection.${what}`,
-      companyId: actor.activeCompanyId,
+      companyId: owner,
       ...auditActor(actor),
       resourceType: 'outbound_connection',
       resourceId: row.id,

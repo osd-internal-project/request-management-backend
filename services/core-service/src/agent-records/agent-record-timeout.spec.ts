@@ -13,7 +13,7 @@ function setup(
     createdAt: Date;
   }[],
   connections: {
-    companyId: string;
+    companyId: string | null;
     action: string;
     timeoutMinutes: number | null;
   }[],
@@ -141,6 +141,41 @@ describe('AgentRecordTimeoutService.sweep', () => {
       }),
       expect.anything(),
     );
+  });
+
+  it('a shared row (companyId NULL) sets the timeout for every company without its own row', async () => {
+    const { service, table } = setup(
+      [
+        {
+          id: 'b-45',
+          companyId: 'B',
+          action: 'lead.find',
+          status: 'processing',
+          createdAt: minutesAgo(45),
+        },
+        {
+          id: 'b-70',
+          companyId: 'B',
+          action: 'lead.find',
+          status: 'processing',
+          createdAt: minutesAgo(70),
+        },
+      ],
+      [{ companyId: null, action: 'lead.find', timeoutMinutes: 60 }],
+    );
+    const findMany = (service as unknown as { records: { findMany: jest.Mock } })
+      .records.findMany;
+
+    await expect(service.sweep(NOW)).resolves.toBe(1);
+
+    expect(table.map((row) => [row.id, row.status])).toEqual([
+      ['b-45', 'processing'],
+      ['b-70', 'failed'],
+    ]);
+    // Prisma refuses NULL inside notIn — it must never be sent
+    for (const [args] of findMany.mock.calls as [{ where: { companyId: unknown } }][]) {
+      expect(JSON.stringify(args.where.companyId)).not.toContain('null');
+    }
   });
 
   it('running it again closes nothing new', async () => {

@@ -4,6 +4,7 @@ import {
   assertHumanPermissions,
   assertPermissionsFitLevel,
   assertSeparationOfDuties,
+  companyAdminRolePermissions,
   paginated,
   Principal,
   PrismaTransactionService,
@@ -216,8 +217,37 @@ export class SystemService {
     return this.rolesService.revokeRole(userId, roleId, companyId, actor);
   }
 
-  listCompanies() {
-    return this.system.listCompanies();
+  /**
+   * ภาพรวมทุกบริษัท — เฉพาะตัวเลขระดับองค์กร (สมาชิก ผู้ดูแล หน่วยงาน) ไม่นับคำขอหรือลูกค้า.
+   * รูปแถวเดิม (`_count.users`) คงไว้ เพราะตัวกรองหน้าผู้ใช้และ company switcher อ่านอยู่
+   */
+  async listCompanies() {
+    const [companies, suspended, admins] = await Promise.all([
+      this.system.listCompanies(),
+      this.system.suspendedMembersByCompany(),
+      this.system.adminHolders(),
+    ]);
+    const suspendedOf = new Map(
+      suspended.map((row) => [row.companyId, row._count._all]),
+    );
+    const adminsOf = new Map<string, number>();
+    for (const row of admins) {
+      adminsOf.set(row.companyId, (adminsOf.get(row.companyId) ?? 0) + 1);
+    }
+    return companies.map((company) => ({
+      ...company,
+      suspendedMembers: suspendedOf.get(company.id) ?? 0,
+      adminCount: adminsOf.get(company.id) ?? 0,
+    }));
+  }
+
+  /** หนึ่งบริษัท + รายชื่อผู้ดูแล — หน้ารายบริษัทของระบบ */
+  async getCompany(id: string) {
+    const rows = await this.listCompanies();
+    const company = rows.find((row) => row.id === id);
+    if (!company) throw new AppError('NOT_FOUND', 'ไม่พบบริษัทที่ระบุ');
+    const admins = await this.system.adminHolders(id);
+    return { ...company, admins: admins.map((row) => row.user) };
   }
 
   async createCompany(dto: CreateCompanyDto, actor: Principal) {
@@ -232,6 +262,28 @@ export class SystemService {
         { code: dto.code, name: dto.name.trim(), docPrefix: dto.doc_prefix },
         option,
       );
+      // ไม่มี role ผู้ดูแล = คนที่เข้ามา (รวมทั้ง system tenant) ไม่มีสิทธิ์อะไรเลย
+      const { roleId, rootUnitId } = await this.system.bootstrapCompany(
+        company,
+        companyAdminRolePermissions(),
+        actor.userId,
+        option,
+      );
+      if (dto.admin_user_id) {
+        const admin = await this.system.findUser(dto.admin_user_id, option);
+        if (!admin || admin.status !== 'ACTIVE') {
+          throw new AppError('VALIDATION_FAILED', 'ไม่พบผู้ใช้ที่ใช้งานอยู่ตามที่ระบุ', [
+            { field: 'admin_user_id', reason: 'not_found' },
+          ]);
+        }
+        await this.system.addCompanyAdmin(
+          admin.id,
+          company.id,
+          roleId,
+          actor.userId,
+          option,
+        );
+      }
       await this.audit.record(
         {
           eventType: AuditEvent.SYSTEM_COMPANY_CREATED,
@@ -239,7 +291,13 @@ export class SystemService {
           ...this.actorOf(actor),
           resourceType: 'company',
           resourceId: company.id,
-          after: { code: company.code, name: company.name },
+          after: {
+            code: company.code,
+            name: company.name,
+            adminRoleId: roleId,
+            rootUnitId,
+            adminUserId: dto.admin_user_id ?? null,
+          },
         },
         option,
       );
@@ -259,6 +317,9 @@ export class SystemService {
         {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
           ...(dto.active !== undefined ? { active: dto.active } : {}),
+          ...(dto.doc_prefix !== undefined
+            ? { docPrefix: dto.doc_prefix }
+            : {}),
         },
         option,
       );
@@ -269,8 +330,16 @@ export class SystemService {
           ...this.actorOf(actor),
           resourceType: 'company',
           resourceId: id,
-          before: { name: before.name, active: before.active },
-          after: { name: after.name, active: after.active },
+          before: {
+            name: before.name,
+            active: before.active,
+            docPrefix: before.docPrefix,
+          },
+          after: {
+            name: after.name,
+            active: after.active,
+            docPrefix: after.docPrefix,
+          },
         },
         option,
       );

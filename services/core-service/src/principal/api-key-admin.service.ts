@@ -365,6 +365,17 @@ export class ApiKeyAdminService {
   }
 
   /** SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้. */
+  /** บริษัทเจ้าของ key — ให้ route ของระบบเรียก method เดิมด้วย owner ที่ถูกต้อง */
+  async ownerOf(id: string): Promise<string | null> {
+    const found = (await this.keys.findFirst({
+      // ระดับระบบ: ทุกบริษัทโดยตั้งใจ — key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+      where: { id, companyId: undefined },
+      select: { companyId: true },
+    })) as { companyId: string | null } | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
+    return found.companyId;
+  }
+
   private async owned(
     id: string,
     actor: Principal,

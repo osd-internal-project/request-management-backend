@@ -67,12 +67,13 @@ export class AuditService {
   }
 
   /**
-   * `companyId` undefined = every company — only `/system/audit` passes that.
-   * The key is always present so the tenant guard sees the choice was made.
+   * `companyId` undefined = every company, null = system-level rows only —
+   * only `/system/audit` passes either. The key is always present so the
+   * tenant guard sees the choice was made.
    */
   async search(
     query: QueryAuditLogDto,
-    companyId: string | undefined,
+    companyId: string | null | undefined,
   ): Promise<Paginated<AuditLog>> {
     const where: Prisma.AuditLogWhereInput = {
       companyId,

@@ -60,22 +60,35 @@ export class AgentRecordTimeoutService
     const rows = (await this.connections.findMany({
       where: { action: { not: null } },
       select: { companyId: true, action: true, timeoutMinutes: true },
-    })) as { companyId: string; action: string; timeoutMinutes: number | null }[];
+    })) as {
+      companyId: string | null;
+      action: string;
+      timeoutMinutes: number | null;
+    }[];
 
     let closed = 0;
     for (const action of Object.keys(AGENT_ACTIONS) as AgentAction[]) {
-      const set = rows
-        .filter((row) => row.action === action)
-        .map((row) => ({
-          companyId: row.companyId,
-          minutes: timeoutMinutesOf(action, row.timeoutMinutes),
-        }));
+      const ofAction = rows.filter((row) => row.action === action);
+      const set = ofAction.flatMap((row) =>
+        row.companyId
+          ? [
+              {
+                companyId: row.companyId,
+                minutes: timeoutMinutesOf(action, row.timeoutMinutes),
+              },
+            ]
+          : [],
+      );
       for (const { companyId, minutes } of set) {
         closed += await this.close(action, minutes, now, { companyId });
       }
+      // แถวกลาง (companyId NULL) คือเวลาของทุกบริษัทที่ไม่มีแถวของตัวเอง — NULL ห้ามเข้า notIn (Prisma ปฏิเสธ)
+      const shared = ofAction.find((row) => row.companyId === null);
       closed += await this.close(
         action,
-        AGENT_ACTIONS[action].defaultTimeoutMinutes,
+        shared
+          ? timeoutMinutesOf(action, shared.timeoutMinutes)
+          : AGENT_ACTIONS[action].defaultTimeoutMinutes,
         now,
         { companyId: { notIn: set.map((entry) => entry.companyId) } },
       );

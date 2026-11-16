@@ -17,6 +17,7 @@ describe('IntegrationCallMiddleware', () => {
       modes: ['app', 'delegated'],
       allowActingUser: false,
       keycloakClientIds: ['aiyara'],
+      allowedCompanyIds: [],
     },
   };
 

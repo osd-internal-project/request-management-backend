@@ -31,7 +31,8 @@ export class VuvagentDispatchError extends Error {
 
 /** One agent: its URL, sealed key and endpoint id. */
 interface ConnectionRow {
-  companyId: string;
+  /** บริษัทที่งานนี้ทำแทน — แถวกลางเก็บ NULL, `connectionOf` ใส่บริษัทของ record ให้ */
+  companyId: string | null;
   action: string | null;
   baseUrl: string;
   secretEnc: string;
@@ -178,19 +179,41 @@ export class VuvagentClient {
     };
   }
 
+  /**
+   * การเชื่อมต่อกลางของงานนี้ (14 พ.ย. 2569) ถ้าบริษัทนี้อยู่ใน `allowedCompanyIds` ของ integration
+   * (ว่าง = ทุกบริษัท) — คืนแถวพร้อม `companyId` = บริษัทของงาน ไม่ใช่ของแถว
+   */
   private async connectionOf(
     companyId: string,
     action: AgentAction,
   ): Promise<ConnectionRow> {
+    const select = {
+      companyId: true,
+      action: true,
+      baseUrl: true,
+      secretEnc: true,
+      endpointId: true,
+    };
+    const shared = (await this.connections.findFirst({
+      where: { companyId: null, action, active: true },
+      select: { ...select, integration: { select: { allowedCompanyIds: true } } },
+    })) as (ConnectionRow & { integration: { allowedCompanyIds: string[] } }) | null;
+    if (shared) {
+      const allowed = shared.integration.allowedCompanyIds;
+      if (allowed.length && !allowed.includes(companyId)) {
+        throw new VuvagentDispatchError(
+          null,
+          `บริษัทนี้ยังไม่ได้รับอนุญาตให้ใช้การเชื่อมต่อกลางของงาน ${action} — เพิ่มที่หน้าระบบภายนอกระดับระบบ`,
+        );
+      }
+      const { integration: _integration, ...row } = shared;
+      return { ...row, companyId };
+    }
+
+    // shortcut: แถวรายบริษัทแบบเดิม ใช้เฉพาะ action ที่ยังไม่มีแถวกลาง — หลังย้ายข้อมูล แถวเหล่านี้ถูกปิดหมด ลบทางนี้ได้
     const connection = (await this.connections.findFirst({
       where: { companyId, action, active: true },
-      select: {
-        companyId: true,
-        action: true,
-        baseUrl: true,
-        secretEnc: true,
-        endpointId: true,
-      },
+      select,
     })) as ConnectionRow | null;
     if (!connection) {
       throw new VuvagentDispatchError(
@@ -233,7 +256,12 @@ export class VuvagentClient {
     return fetch(url, {
       method: 'POST',
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+      // บริษัทอยู่ทั้งใน header และ body — body คงไว้เพราะ agent ที่ใช้อยู่อ่านจากตรงนั้น
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        ...(connection.companyId && { 'X-Company-Id': connection.companyId }),
+      },
       body: JSON.stringify({ ...body, organization_id: connection.companyId }),
     }).catch((cause: unknown) => {
       throw new VuvagentDispatchError(null, String(cause));
