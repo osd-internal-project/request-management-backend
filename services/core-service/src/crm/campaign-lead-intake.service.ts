@@ -280,8 +280,6 @@ export class CampaignLeadIntakeService {
     return {
       received: true,
       status: result.status,
-      // the same e-mail again: their registration now holds what they sent
-      updated: result.updated,
       // the online link only once they hold a seat
       online_url:
         result.status === 'registered' ? campaign.eventOnlineUrl : null,
