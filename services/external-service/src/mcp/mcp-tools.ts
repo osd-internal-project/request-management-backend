@@ -169,6 +169,8 @@ export class McpToolRegistry implements OnModuleInit {
   private keyPermissions = new Map<string, string[]>();
   /** ชื่อ tool → ชุดกฎปกปิดของคำตอบ (ว่าง = ไม่ต้องปกปิด). */
   private sensitiveResources = new Map<string, string>();
+  /** ชื่อ tool → HTTP method ของ route ที่มันแทน (`x-request.method`). */
+  private methods = new Map<string, string>();
   /** Why MCP has no tools, when that is a fault rather than a catalogue. */
   private unavailable: string | null = null;
 
@@ -395,6 +397,10 @@ export class McpToolRegistry implements OnModuleInit {
       specs.map((spec) => [spec.name, spec['x-sensitive-resource'] ?? '']),
     );
 
+    this.methods = new Map(
+      specs.map((spec) => [spec.name, spec['x-request'].method]),
+    );
+
     this.logger.log(`MCP: ${this.tools.length} tools`);
   }
 
@@ -467,6 +473,11 @@ export class McpToolRegistry implements OnModuleInit {
 
   has(name: string): boolean {
     return name in this.handlers;
+  }
+
+  /** HTTP method ของ route ที่ tool นี้แทน — ใช้ตัดสินว่าเป็นการอ่านหรือเขียน. */
+  methodOf(name: string): string | undefined {
+    return this.methods.get(name);
   }
 
   /**

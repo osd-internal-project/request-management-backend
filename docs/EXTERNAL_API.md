@@ -388,6 +388,15 @@ header `MCP-Protocol-Version` ที่ไม่รู้จักได้ 400.
   "ระบุผู้ใช้ด้วยอีเมล" (ระบบที่สร้างใหม่ปิดไว้)
 - ทุกคนใน LibreChat จะกลายเป็นคนคนเดียวกันตามอีเมลใน header นั้น — ถ้าต้องแยกคน ใช้ OAuth
 
+**คีย์ API ของบริษัท อ่านอย่างเดียว ไม่ระบุคน** — กรณีนี้ไม่ต้องส่ง header ระบุคน
+
+- ออกกุญแจที่หน้า ผู้ดูแลระบบ → กุญแจ API โดยเลือกบริษัท และเปิดโหมด `app` ให้ระบบภายนอกของกุญแจนั้น
+  แล้วติ๊กเฉพาะสิทธิ์อ่าน เช่น `integration.request.read` + `integration.crm.customer.read`
+- ใส่ `rfk_…` เป็นคีย์ และ**ไม่ต้อง**ใส่ `X-Acting-User`
+- tool ที่เป็น GET (`x-request.method` ใน `external-tools.json`) ตอบในนามบริษัท และเห็นข้อมูลทั้งบริษัท
+  แต่ฟิลด์อ่อนไหวยังถูกปกปิด ส่วน tool ที่เขียนยังต้องระบุคน (400) ตามข้อ "The twelfth" ใน `AGENTS.md`
+  MCP ส่งทุกคำขอเป็น `POST` ดังนั้น `McpService` จึงส่ง method ของ tool เข้า `resolveCaller` แทน method ของ HTTP
+
 **ถ้าเลือก "OAuth"** — แยกคนได้ แต่ต้องตั้ง client ใน Keycloak ก่อน
 
 `GET /.well-known/oauth-protected-resource` บอก LibreChat เองว่าให้ไป login ที่

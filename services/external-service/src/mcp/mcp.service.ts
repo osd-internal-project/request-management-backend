@@ -145,7 +145,11 @@ export class McpService {
         user there would make the handshake impossible for the service-account
         route.
       */
-      actor = await this.actors.resolve(request, caller);
+      actor = await this.actors.resolve(
+        request,
+        caller,
+        this.tools.methodOf(name),
+      );
 
       const value = await this.tools.call(name, args, {
         actor,

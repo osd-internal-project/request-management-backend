@@ -35,12 +35,14 @@ export class McpActorService {
    * The human this call belongs to.
    *
    * @param caller the principal the global guards resolved from the bearer
+   * @param method the tool's route method — a company key reads only on GET
    */
   async resolve(
     request: RequestWithPrincipal,
     caller: Principal,
+    method?: string,
   ): Promise<Principal> {
     // กฎเดียวกับ REST — X-User-Token / X-Acting-User / token ของคนเอง
-    return resolveCaller(request, caller, this.principals);
+    return resolveCaller(request, caller, this.principals, method);
   }
 }
