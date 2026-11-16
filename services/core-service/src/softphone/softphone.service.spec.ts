@@ -202,6 +202,64 @@ describe('workspaceTicket — D-Callcenter Workspace', () => {
   });
 });
 
+describe('widgetTicket — D-Callcenter floating softphone', () => {
+  const dcall = {
+    gatewayUrl: 'https://dcall.example.com',
+    widgetId: '9',
+    widgetKey: 'dck_widget',
+    timeoutMs: 1000,
+  };
+  const withEmail = { ...agent, email: 'agent@osd.co.th' } as Principal;
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it('is disabled without network when the widget key or id is unset', async () => {
+    for (const settings of [undefined, { ...dcall, widgetKey: '' }, { ...dcall, widgetId: 'x' }]) {
+      const { service } = harness({ dcall: settings });
+      await expect(service.widgetTicket(withEmail)).resolves.toEqual({
+        enabled: false,
+      });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks Dcall’s widget endpoint with the widget key and the caller’s email', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({ data: { ticket: 'dcwt_9', expires_at: '2026-11-16T10:02:00Z' } }),
+    });
+    const { service } = harness({ dcall: { ...dcall, key: 'dck_workspace' } });
+    await expect(service.widgetTicket(withEmail)).resolves.toEqual({
+      enabled: true,
+      widget: 9,
+      ticket: 'dcwt_9',
+      expires_at: '2026-11-16T10:02:00Z',
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://dcall.example.com/api/v1/integrations/widget/tickets');
+    expect(init.headers).toMatchObject({ 'x-integration-key': 'dck_widget' });
+    expect(JSON.parse(String(init.body))).toEqual({ email: 'agent@osd.co.th' });
+  });
+
+  it('answers UPSTREAM_ERROR when Dcall refuses', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ error: 'bad key' }),
+    });
+    const { service } = harness({ dcall });
+    await expect(service.widgetTicket(withEmail)).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+    });
+  });
+});
+
 describe('admin extensions', () => {
   it('never returns the password in the list', async () => {
     const { service } = harness({});

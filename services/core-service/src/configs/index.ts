@@ -380,6 +380,9 @@ export default () => ({
     gatewayUrl: process.env.DCALL_GATEWAY_URL ?? 'https://dcall-v2.osd.co.th',
     workspaceId: process.env.DCALL_WORKSPACE_ID,
     key: process.env.DCALL_WORKSPACE_KEY,
+    /** The floating softphone widget (`softphone.js`) — its own integration and key. */
+    widgetId: process.env.DCALL_WIDGET_ID,
+    widgetKey: process.env.DCALL_WIDGET_KEY,
     timeoutMs: Number(process.env.DCALL_TIMEOUT_MS ?? 10000),
   },
   /** CD-16 AI SMART */
