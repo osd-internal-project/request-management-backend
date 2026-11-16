@@ -82,7 +82,12 @@ function harness(
   const notifications = { campaignLead: jest.fn(() => Promise.resolve()) };
   const writer = {
     register: jest.fn(() =>
-      Promise.resolve({ id: 'reg-1', status: 'registered', repeat: false }),
+      Promise.resolve({
+        id: 'reg-1',
+        status: 'registered',
+        repeat: false,
+        updated: false,
+      }),
     ),
   };
   const registrationRows = {
@@ -335,6 +340,7 @@ describe('CD-269 one screening for every Lead from outside', () => {
     expect(answer).toEqual({
       received: true,
       status: 'registered',
+      updated: false,
       online_url: 'https://meet.example/abc',
     });
     expect(writer.register).toHaveBeenCalledWith(event, {
