@@ -38,6 +38,7 @@ function harness(options: {
   callLog?: { id: string } | null;
   typeEnabled?: boolean;
   contacts?: { id: string; customerId: string; name: string }[];
+  dcall?: Record<string, unknown>;
 }) {
   const extensions = {
     findFirst: jest.fn(() => Promise.resolve(options.existing ?? null)),
@@ -71,7 +72,11 @@ function harness(options: {
     execute: jest.fn((fn: (prisma: unknown) => unknown) => fn({})),
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
-  const config = { get: jest.fn(() => KEY) };
+  const config = {
+    get: jest.fn((key: string) =>
+      key === 'dcallWorkspace' ? options.dcall : KEY,
+    ),
+  };
   const service = new SoftphoneService(
     extensions as never,
     requests as never,
@@ -114,6 +119,85 @@ describe('runtime — the caller’s own line', () => {
     await expect(service.runtime(agent)).resolves.toEqual({
       enabled: false,
       reason: 'PASSWORD_UNREADABLE',
+    });
+  });
+});
+
+describe('workspaceTicket — D-Callcenter Workspace', () => {
+  const dcall = {
+    gatewayUrl: 'https://dcall.example.com/',
+    workspaceId: '8',
+    key: 'dck_test',
+    timeoutMs: 1000,
+  };
+  const withEmail = { ...agent, email: 'agent@osd.co.th' } as Principal;
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it('is disabled without network when the key or workspace is unset', async () => {
+    for (const settings of [undefined, { ...dcall, key: '' }, { ...dcall, workspaceId: 'x' }]) {
+      const { service } = harness({ dcall: settings });
+      await expect(service.workspaceTicket(withEmail)).resolves.toEqual({
+        enabled: false,
+      });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('is disabled for a user with no email', async () => {
+    const { service } = harness({ dcall });
+    await expect(
+      service.workspaceTicket({ ...agent, email: null } as Principal),
+    ).resolves.toEqual({ enabled: false, reason: 'NO_EMAIL' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks Dcall with the key and the caller’s email', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          data: { ticket: 'dcwt_1', expires_at: '2026-11-16T10:02:00Z', widget_id: 8 },
+        }),
+    });
+    const { service } = harness({ dcall });
+    await expect(service.workspaceTicket(withEmail)).resolves.toEqual({
+      enabled: true,
+      workspace: 8,
+      ticket: 'dcwt_1',
+      expires_at: '2026-11-16T10:02:00Z',
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://dcall.example.com/api/v1/integrations/workspace/tickets');
+    expect(init.headers).toMatchObject({ 'x-integration-key': 'dck_test' });
+    expect(JSON.parse(String(init.body))).toEqual({ email: 'agent@osd.co.th' });
+  });
+
+  it('answers UPSTREAM_ERROR naming the email when Dcall refuses', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ ok: false, error: 'user not found' }),
+    });
+    const { service } = harness({ dcall });
+    await expect(service.workspaceTicket(withEmail)).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+      message: expect.stringContaining('agent@osd.co.th'),
+    });
+  });
+
+  it('answers UPSTREAM_ERROR when Dcall cannot be reached', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+    const { service } = harness({ dcall });
+    await expect(service.workspaceTicket(withEmail)).rejects.toMatchObject({
+      code: 'UPSTREAM_ERROR',
+      message: 'ติดต่อ D-Callcenter ไม่ได้',
     });
   });
 });
@@ -285,6 +369,13 @@ describe('softphone routes through the real PolicyGuard', () => {
       expect.objectContaining({ code: 'FORBIDDEN' }),
     );
     expect(guard('logCall', ['request.create'])()).toBe(true);
+  });
+
+  it('workspaceTicket needs phone.workspace.use', () => {
+    expect(guard('workspaceTicket', ['request.create'])).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+    expect(guard('workspaceTicket', ['phone.workspace.use'])()).toBe(true);
   });
 
   it('runtime is open to any signed-in user', () => {

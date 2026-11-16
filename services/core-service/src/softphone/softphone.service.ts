@@ -21,6 +21,13 @@ import {
   SoftphoneExtensionRepository,
 } from './softphone.repository';
 
+interface DcallWorkspaceSettings {
+  gatewayUrl?: string;
+  workspaceId?: string;
+  key?: string;
+  timeoutMs?: number;
+}
+
 /** What the audit log keeps of an extension — never the password. */
 function snapshot(row: SoftphoneExtension) {
   return {
@@ -75,6 +82,77 @@ export class SoftphoneService {
       wss_url: row.wssUrl,
       sip_server: row.sipServer,
     };
+  }
+
+  /**
+   * A one-time ticket (2 minutes) that opens the caller's D-Callcenter
+   * Workspace. Dcall matches the person by email; the integration key stays here.
+   */
+  async workspaceTicket(actor: Principal) {
+    const settings =
+      this.config.get<DcallWorkspaceSettings>('dcallWorkspace') ?? {};
+    const workspace = Number(settings.workspaceId);
+    if (!settings.key || !Number.isInteger(workspace) || workspace <= 0) {
+      return { enabled: false as const };
+    }
+    const email = actor.email;
+    if (!email) return { enabled: false as const, reason: 'NO_EMAIL' };
+
+    const base = (settings.gatewayUrl ?? '').replace(/\/$/, '');
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      settings.timeoutMs ?? 10_000,
+    );
+    try {
+      const response = await fetch(
+        `${base}/api/v1/integrations/workspace/tickets`,
+        {
+          method: 'POST',
+          headers: {
+            'x-integration-key': settings.key,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+          signal: controller.signal,
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        data?: { ticket?: unknown; expires_at?: unknown };
+        error?: unknown;
+      } | null;
+      const ticket = body?.data?.ticket;
+      if (!response.ok || typeof ticket !== 'string') {
+        this.logger.warn(
+          `dcall workspace ticket: HTTP ${response.status} ${String(body?.error ?? '')}`,
+        );
+        throw new AppError(
+          'UPSTREAM_ERROR',
+          response.status >= 400 && response.status < 500
+            ? `D-Callcenter ไม่ออก ticket ให้ ${email} (HTTP ${response.status}) ตรวจว่ามีผู้ใช้อีเมลนี้ใน D-Callcenter`
+            : `D-Callcenter ตอบ ${response.status}`,
+        );
+      }
+      return {
+        enabled: true as const,
+        workspace,
+        ticket,
+        expires_at:
+          typeof body?.data?.expires_at === 'string'
+            ? body.data.expires_at
+            : null,
+      };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        'UPSTREAM_ERROR',
+        controller.signal.aborted
+          ? 'D-Callcenter ไม่ตอบในเวลาที่กำหนด'
+          : 'ติดต่อ D-Callcenter ไม่ได้',
+      );
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async list(actor: Principal) {
