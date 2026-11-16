@@ -34,6 +34,17 @@ export class SoftphoneController {
   }
 
   @ApiOperation({
+    summary:
+      'ticket ใช้ครั้งเดียวสำหรับ D-Callcenter Workspace ของผู้ใช้เอง · ไม่ได้ตั้งค่า = enabled:false',
+  })
+  @Post('workspace-ticket')
+  @HttpCode(200)
+  @Permissions('phone.workspace.use')
+  workspaceTicket(@CurrentPrincipal() principal: Principal) {
+    return this.softphone.workspaceTicket(principal);
+  }
+
+  @ApiOperation({
     summary: 'บันทึกสายเข้าที่รับแล้วเป็นคำขอ CALL_LOG (ซ้ำ call_id = ตัวเดิม)',
   })
   @Post('call-logs')
