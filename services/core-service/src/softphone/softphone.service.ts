@@ -25,6 +25,8 @@ interface DcallWorkspaceSettings {
   gatewayUrl?: string;
   workspaceId?: string;
   key?: string;
+  widgetId?: string;
+  widgetKey?: string;
   timeoutMs?: number;
 }
 
@@ -89,15 +91,48 @@ export class SoftphoneService {
    * Workspace. Dcall matches the person by email; the integration key stays here.
    */
   async workspaceTicket(actor: Principal) {
-    const settings =
-      this.config.get<DcallWorkspaceSettings>('dcallWorkspace') ?? {};
+    const settings = this.dcallSettings();
     const workspace = Number(settings.workspaceId);
     if (!settings.key || !Number.isInteger(workspace) || workspace <= 0) {
       return { enabled: false as const };
     }
-    const email = actor.email;
-    if (!email) return { enabled: false as const, reason: 'NO_EMAIL' };
+    if (!actor.email) return { enabled: false as const, reason: 'NO_EMAIL' };
+    const issued = await this.requestTicket(
+      settings,
+      'workspace',
+      settings.key,
+      actor.email,
+    );
+    return { enabled: true as const, workspace, ...issued };
+  }
 
+  /** The same one-time ticket for the floating softphone widget (`softphone.js`). */
+  async widgetTicket(actor: Principal) {
+    const settings = this.dcallSettings();
+    const widget = Number(settings.widgetId);
+    if (!settings.widgetKey || !Number.isInteger(widget) || widget <= 0) {
+      return { enabled: false as const };
+    }
+    if (!actor.email) return { enabled: false as const, reason: 'NO_EMAIL' };
+    const issued = await this.requestTicket(
+      settings,
+      'widget',
+      settings.widgetKey,
+      actor.email,
+    );
+    return { enabled: true as const, widget, ...issued };
+  }
+
+  private dcallSettings(): DcallWorkspaceSettings {
+    return this.config.get<DcallWorkspaceSettings>('dcallWorkspace') ?? {};
+  }
+
+  private async requestTicket(
+    settings: DcallWorkspaceSettings,
+    kind: 'workspace' | 'widget',
+    key: string,
+    email: string,
+  ) {
     const base = (settings.gatewayUrl ?? '').replace(/\/$/, '');
     const controller = new AbortController();
     const timer = setTimeout(
@@ -106,11 +141,11 @@ export class SoftphoneService {
     );
     try {
       const response = await fetch(
-        `${base}/api/v1/integrations/workspace/tickets`,
+        `${base}/api/v1/integrations/${kind}/tickets`,
         {
           method: 'POST',
           headers: {
-            'x-integration-key': settings.key,
+            'x-integration-key': key,
             'content-type': 'application/json',
           },
           body: JSON.stringify({ email }),
@@ -124,7 +159,7 @@ export class SoftphoneService {
       const ticket = body?.data?.ticket;
       if (!response.ok || typeof ticket !== 'string') {
         this.logger.warn(
-          `dcall workspace ticket: HTTP ${response.status} ${String(body?.error ?? '')}`,
+          `dcall ${kind} ticket: HTTP ${response.status} ${String(body?.error ?? '')}`,
         );
         throw new AppError(
           'UPSTREAM_ERROR',
@@ -134,8 +169,6 @@ export class SoftphoneService {
         );
       }
       return {
-        enabled: true as const,
-        workspace,
         ticket,
         expires_at:
           typeof body?.data?.expires_at === 'string'
