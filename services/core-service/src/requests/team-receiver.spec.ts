@@ -21,13 +21,14 @@ function draft(overrides: Partial<RequestWithType> = {}): RequestWithType {
 }
 
 /** The service with only what the team-receiver step reaches. */
-function serviceWith(members: string[], load: Record<string, number>) {
+function serviceWith(members: string[], load: Record<string, number>, manager: string | null = null) {
   const updates: unknown[] = [];
   const events: { type: string; data: unknown }[] = [];
   const service = new RequestsService(
     {
       teamMemberIds: jest.fn(() => Promise.resolve(members)),
       openLoad: jest.fn(() => Promise.resolve(new Map(Object.entries(load)))),
+      activeManagerOf: jest.fn(() => Promise.resolve(manager)),
     } as never,
     {} as never,
     {} as never,
@@ -72,7 +73,7 @@ describe('auto-receive: a request with a receiving team and no receiver', () => 
     ]);
     expect(events[0]).toMatchObject({
       type: 'request.receiver_auto_assigned',
-      data: { receiver_user_id: 'u-b', org_unit_id: TEAM, open_requests: 1 },
+      data: { receiver_user_id: 'u-b', org_unit_id: TEAM, open_requests: 1, reason: 'least_open' },
     });
   });
 
@@ -93,7 +94,14 @@ describe('auto-receive: a request with a receiving team and no receiver', () => 
     expect(updates).toEqual([]);
   });
 
-  it('leaves an empty team to the usual "name a receiver" error', async () => {
+  it("gives an empty team's work to the team's manager", async () => {
+    const { fill, events } = serviceWith([], {}, 'u-manager');
+
+    expect((await fill(draft())).receiverUserId).toBe('u-manager');
+    expect(events[0]).toMatchObject({ data: { receiver_user_id: 'u-manager', reason: 'team_manager' } });
+  });
+
+  it('leaves an empty team with no active manager to the usual "name a receiver" error', async () => {
     const { fill, updates } = serviceWith([], {});
 
     expect((await fill(draft())).receiverUserId).toBeNull();
@@ -109,6 +117,23 @@ describe('pickReceiver', () => {
 
   it('has nobody to pick from an empty team', () => {
     expect(pickReceiver([])).toBeNull();
+  });
+});
+
+describe('RequestRepository.activeManagerOf', () => {
+  const repoWith = (manager: unknown) =>
+    new RequestRepository({ orgUnit: { findFirst: jest.fn(() => Promise.resolve({ manager })) } } as never);
+
+  it('names an active manager who is in the company', async () => {
+    expect(await repoWith({ id: 'u-m', status: 'ACTIVE', companies: [{ id: 'uc' }] }).activeManagerOf(COMPANY, TEAM)).toBe('u-m');
+  });
+
+  it.each([
+    ['suspended', { id: 'u-m', status: 'SUSPENDED', companies: [{ id: 'uc' }] }],
+    ['outside the company', { id: 'u-m', status: 'ACTIVE', companies: [] }],
+    ['missing', null],
+  ])('names nobody when the manager is %s', async (_, manager) => {
+    expect(await repoWith(manager).activeManagerOf(COMPANY, TEAM)).toBeNull();
   });
 });
 

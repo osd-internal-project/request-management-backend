@@ -1206,7 +1206,8 @@ export class RequestsService {
 
   /**
    * No receiver named and none fixed by the type, but a receiving team: hand it
-   * to the team member holding the least open work (17 Nov 2026, user decision).
+   * to the team member holding the least open work, or to the team's manager
+   * when it has no members (17 Nov 2026, user decision).
    * Written before the submit's own checks, so a submit that fails later keeps
    * the receiver on the draft — the next submit sees the same person.
    */
@@ -1226,9 +1227,16 @@ export class RequestsService {
       request.receiverOrgUnitId,
     );
     const loads = await this.requests.openLoad(request.companyId, members);
-    const chosen = pickReceiver(
+    const least = pickReceiver(
       members.map((userId) => ({ userId, open: loads.get(userId) ?? 0 })),
     );
+    const manager = least
+      ? null
+      : await this.requests.activeManagerOf(
+          request.companyId,
+          request.receiverOrgUnitId,
+        );
+    const chosen = least ?? (manager ? { userId: manager, open: null } : null);
     if (!chosen) return request;
 
     await this.transactions.execute(async (prisma) => {
@@ -1244,6 +1252,7 @@ export class RequestsService {
           receiver_user_id: chosen.userId,
           org_unit_id: request.receiverOrgUnitId,
           open_requests: chosen.open,
+          reason: least ? 'least_open' : 'team_manager',
         },
       });
     });
