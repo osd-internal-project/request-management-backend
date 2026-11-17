@@ -340,6 +340,29 @@ export class RequestRepository extends BaseRepository<
     return rows.map((row) => row.id);
   }
 
+  /** The unit's manager, when still active in the company — who takes an empty team's work. */
+  async activeManagerOf(
+    companyId: string,
+    orgUnitId: string,
+  ): Promise<string | null> {
+    const unit = await this.prisma.orgUnit.findFirst({
+      where: { id: orgUnitId, companyId },
+      select: {
+        manager: {
+          select: {
+            id: true,
+            status: true,
+            companies: { where: { companyId }, select: { id: true } },
+          },
+        },
+      },
+    });
+    const manager = unit?.manager;
+    return manager?.status === 'ACTIVE' && manager.companies.length
+      ? manager.id
+      : null;
+  }
+
   /**
    * Requests still open per person, counting each once whether they receive
    * it, hold it, or both — every type in the company.
