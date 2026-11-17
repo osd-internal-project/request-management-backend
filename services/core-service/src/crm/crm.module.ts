@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
+import { ServiceWorkOrderRepository } from '../support/support.repositories';
 import { RequestsModule } from '../requests/requests.module';
 import { ErpModule } from '../erp/erp.module';
 import { ReservePhoneModule } from '../reserve-phone/reserve-phone.module';
@@ -212,6 +213,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
   ],
   providers: [
     CustomersService,
+    // the customer page counts a service work order as a case
+    ServiceWorkOrderRepository,
     CrmAdminService,
     CustomerRepository,
     CustomerLocationRepository,
