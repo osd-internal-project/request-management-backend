@@ -628,9 +628,10 @@ export class UpdateRequestTypeDto {
  * Create **and submit** in one call: an integration has no screen to come back
  * to, so a draft left behind by a partial call would sit unrouted forever.
  *
- * `requester_user_id` is required and is a *person*: a service account has no
- * supervisor, so a chain could not be resolved for it, and the work would have
- * no first approver. The integration names whom it is acting for.
+ * `requester_user_id` names the *person* the request belongs to. Left out, the
+ * requester is the calling key's "system (<key name>)" account — it has no
+ * place in the chart, so a type whose ladder needs a supervisor answers
+ * `ORG_SUPERVISOR_MISSING`, the same as for a person without one.
  */
 export class CreateIntegrationRequestDto {
   @ApiProperty({ example: 'DSC' })
@@ -638,10 +639,14 @@ export class CreateIntegrationRequestDto {
   @IsNotEmpty()
   type_code!: string;
 
-  @ApiProperty({ description: 'The person this request belongs to.' })
+  @ApiPropertyOptional({
+    description:
+      'The person this request belongs to. Omit to file it as "system (<API key name>)".',
+  })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  requester_user_id!: string;
+  requester_user_id?: string;
 
   @ApiProperty({ description: 'Company the request is raised in.' })
   @IsString()

@@ -17,6 +17,7 @@ import {
 import { FormBindingRegistry } from './form-binding.registry';
 import { FormOptionSources } from './form-option-sources';
 import type { Principal } from '@request-management/share';
+import type { ApiKeyContext } from '../principal/api-key.service';
 import { Prisma } from '@prisma/client';
 import type { RequestSeverity, RequestStatus } from '@prisma/client';
 import { toFormFields } from './form-schema';
@@ -930,9 +931,10 @@ export class RequestsService {
     dto: CreateIntegrationRequestDto,
     actor: Principal,
     authorization: string,
-    /** The API key's own company; null = an unbound key. */
-    keyCompanyId: string | null = null,
+    /** The API key that called; its `companyId` null = an unbound key. */
+    key: Pick<ApiKeyContext, 'id' | 'prefix' | 'name' | 'companyId'> | null = null,
   ) {
+    const keyCompanyId = key?.companyId ?? null;
     // CD-66 fix: a key bound to one company must not raise work in another by
     // naming it in the body — the header was pinned, the body was not.
     if (keyCompanyId && dto.company_id !== keyCompanyId) {
@@ -944,10 +946,13 @@ export class RequestsService {
     }
     const companyId = resolveTargetCompany(actor, dto.company_id);
     const type = await this.requireType(dto.type_code, companyId);
+    const requesterId =
+      dto.requester_user_id ??
+      (await this.systemRequesterFor(key, companyId));
     // SCOPE-02 — the requester's group at submit, as the screen path snapshots it;
     // null left the request reachable only by the people named on it.
     const requesterOrgUnitId = await this.orgUnits.unitOfMember(
-      dto.requester_user_id,
+      requesterId,
       companyId,
     );
 
@@ -956,7 +961,7 @@ export class RequestsService {
         requestTypeId: type.id,
         typeCode: type.code,
         companyId,
-        requesterId: dto.requester_user_id,
+        requesterId,
         requesterOrgUnitId,
         formData: applyComputedFields(
           type.formSchema,
@@ -987,6 +992,46 @@ export class RequestsService {
       authorization,
       { forRequester: true },
     );
+  }
+
+  /**
+   * The key's own "system (<key name>)" account, made on first use: the requester
+   * when an integration names nobody. SUSPENDED and a non-Keycloak `keycloakId`,
+   * so it can never log in, be picked, or be named in `X-Acting-User`.
+   */
+  private async systemRequesterFor(
+    key: Pick<ApiKeyContext, 'id' | 'prefix' | 'name'> | null,
+    companyId: string,
+  ): Promise<string> {
+    if (!key) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ต้องระบุ requester_user_id เมื่อไม่ได้เรียกด้วย API key',
+        [{ field: 'requester_user_id', reason: 'required' }],
+      );
+    }
+    const displayName = `system (${key.name})`;
+    return this.transactions.execute(async (prisma) => {
+      const user = await prisma.user.upsert({
+        where: { keycloakId: `apikey:${key.id}` },
+        update: { displayName },
+        create: {
+          keycloakId: `apikey:${key.id}`,
+          username: `system-${key.prefix}`,
+          displayName,
+          status: 'SUSPENDED',
+          suspendedAt: new Date(),
+          suspendReason: 'บัญชีระบบของ API key — ใช้เป็นผู้ยื่นคำขอจากระบบภายนอก',
+        },
+        select: { id: true },
+      });
+      await prisma.userCompany.upsert({
+        where: { userId_companyId: { userId: user.id, companyId } },
+        update: {},
+        create: { userId: user.id, companyId },
+      });
+      return user.id;
+    });
   }
 
   /**

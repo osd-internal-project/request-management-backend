@@ -21,6 +21,7 @@ import {
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { RequestRepository } from '../requests/request.repository';
 import { CustomerContractRepository } from './contract.repositories';
+import { ServiceWorkOrderRepository } from '../support/support.repositories';
 import { CustomerRepository } from './customer.repository';
 import {
   CustomerLocationRepository,
@@ -121,6 +122,7 @@ export class CustomersService {
     private readonly configs: CrmConfigRepository,
     private readonly approval: CustomerApprovalService,
     private readonly contracts: CustomerContractRepository,
+    private readonly workOrders: ServiceWorkOrderRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -216,16 +218,17 @@ export class CustomersService {
    * the page does not ask then (C360-04).
    */
   async requestsOf(id: string, actor: Principal) {
-    await this.findOne(id, actor);
+    const customer = await this.findOne(id, actor);
     if (!hasPermission(actor, 'request.read')) {
       throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ดูคำขอ');
     }
+    const jobs = await this.workOrderRequestIds(customer);
     const [rows, config] = await Promise.all([
       this.requests.findMany({
         where: {
           AND: [
             visibleRequestsWhere(accessSubject(actor)),
-            await this.customerRequestsWhere(id),
+            await this.customerRequestsWhere(customer, jobs),
           ],
         },
         orderBy: { createdAt: 'desc' },
@@ -254,28 +257,49 @@ export class CustomersService {
             },
           },
         },
-      }),
+      }) as Promise<{ id: string; severity: string | null }[]>,
       this.configs.findFirst({
         where: { companyId: actor.activeCompanyId },
         select: { contractRequestTypeCode: true },
       }) as Promise<{ contractRequestTypeCode: string | null } | null>,
     ]);
+    const jobSet = new Set(jobs);
     return {
       contractRequestTypeCode: config?.contractRequestTypeCode ?? null,
-      rows,
+      // a case: raised with a severity (CD-67), or a service work order —
+      // one made from a request already raised carries no severity
+      rows: rows.map((row) => ({
+        ...row,
+        isCase: Boolean(row.severity) || jobSet.has(row.id),
+      })),
     };
+  }
+
+  /** The requests that are this customer's service work orders (CD-239). */
+  private async workOrderRequestIds(customer: {
+    id: string;
+    companyId: string;
+  }): Promise<string[]> {
+    const rows = (await this.workOrders.findMany({
+      where: { companyId: customer.companyId, customerId: customer.id },
+      select: { requestId: true },
+    })) as { requestId: string }[];
+    return rows.map((row) => row.requestId);
   }
 
   /**
    * What "about this customer" means for a request: its ref names the
-   * customer, one of its deals (by code or id — screens send the code), one
-   * of its quotations, or one of its contracts (CD-67 — a case raised
+   * customer (by id, or by code within its company — a service work order
+   * sends the code), one of its service work orders, one of its deals (by
+   * code or id — screens send the code), one of its quotations, or one of its contracts (CD-67 — a case raised
    * against a contract, by number or id). Request visibility is applied by
    * the caller.
    */
   private async customerRequestsWhere(
-    id: string,
+    customer: { id: string; customerCode: string; companyId: string },
+    jobs: string[],
   ): Promise<Prisma.RequestWhereInput> {
+    const { id } = customer;
     const [deals, quotes, contracts] = await Promise.all([
       this.opportunities.findMany({
         where: { customerId: id },
@@ -295,6 +319,13 @@ export class CustomersService {
     return {
       OR: [
         { refType: 'customer', refId: id },
+        {
+          refType: 'customer',
+          refId: customer.customerCode,
+          companyId: customer.companyId,
+        },
+        // a service work order for this customer, whatever its request names
+        ...(jobs.length ? [{ id: { in: jobs } }] : []),
         ...(contracts.length
           ? [
               {
@@ -328,18 +359,35 @@ export class CustomersService {
   }
 
   async summaryOf(id: string, actor: Principal) {
-    await this.findOne(id, actor);
+    const customer = await this.findOne(id, actor);
 
     // CD-68 — the same "about this customer" as the requests tab, so the
     // card and the rows under it cannot disagree.
-    const requestWhere = hasPermission(actor, 'request.read')
+    const seesRequests = hasPermission(actor, 'request.read');
+    const jobs = seesRequests ? await this.workOrderRequestIds(customer) : [];
+    const requestWhere = seesRequests
       ? {
           AND: [
             visibleRequestsWhere(accessSubject(actor)),
-            await this.customerRequestsWhere(id),
+            await this.customerRequestsWhere(customer, jobs),
           ],
         }
       : {};
+    // the same "case" as the cases tab: a severity, or a service work order
+    const caseWhere = {
+      AND: [
+        requestWhere,
+        {
+          OR: [
+            { severity: { not: null } },
+            ...(jobs.length ? [{ id: { in: jobs } }] : []),
+          ],
+        },
+      ],
+    };
+    const stillOpen = {
+      status: { notIn: ['completed', 'closed', 'cancelled', 'rejected'] },
+    };
 
     const seesFinancials = hasPermission(actor, 'crm.customer.financial.read');
 
@@ -358,6 +406,8 @@ export class CustomersService {
       branchCustomers,
       requestTotal,
       requestOpen,
+      caseTotal,
+      caseOpen,
       erpCode,
       opportunityOpenCount,
       opportunityOpenSum,
@@ -371,18 +421,17 @@ export class CustomersService {
       hasPermission(actor, 'request.read')
         ? this.requests.count({ where: requestWhere })
         : Promise.resolve(null),
-      hasPermission(actor, 'request.read')
+      seesRequests
         ? this.requests.count({
-            where: {
-              AND: [
-                requestWhere,
-                {
-                  status: {
-                    notIn: ['completed', 'closed', 'cancelled', 'rejected'],
-                  },
-                },
-              ],
-            } as never,
+            where: { AND: [requestWhere, stillOpen] } as never,
+          })
+        : Promise.resolve(null),
+      seesRequests
+        ? this.requests.count({ where: caseWhere })
+        : Promise.resolve(null),
+      seesRequests
+        ? this.requests.count({
+            where: { AND: [caseWhere, stillOpen] } as never,
           })
         : Promise.resolve(null),
       // C360-02/C360-04 — ยอดค้างชำระเป็น permission แยกจาก crm.customer.read
@@ -438,6 +487,8 @@ export class CustomersService {
         requestTotal === null
           ? null
           : { total: requestTotal, open: requestOpen },
+      // null with the requests card: the same `request.read` (C360-04)
+      cases: caseTotal === null ? null : { total: caseTotal, open: caseOpen },
       // ERP_MODE=mock → ตัวเลขใน cache เป็นของปลอม: ตอบ null ให้การ์ดบอกว่ารอ SAP
       // (ไม่มี crm.customer.financial.read ก็ null ด้วย — ไม่เคยอ่าน cache ข้างบน)
       financials: (this.erpSync.receivablesLive

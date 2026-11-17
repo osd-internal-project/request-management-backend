@@ -14,7 +14,35 @@ const robot = {
   permissions: ['integration.request.create'],
 } as unknown as Principal;
 
+const osdKey = {
+  id: 'key-1',
+  prefix: 'rfk_abcdefgh',
+  name: 'D CALL system',
+  companyId: 'osd',
+};
+
 function harness(options: { found?: Record<string, unknown> | null } = {}) {
+  // system accounts keyed by keycloakId, as the unique index would hold them
+  const accounts = new Map<string, { id: string; displayName: string }>();
+  const tx = {
+    user: {
+      upsert: jest.fn(
+        ({ where, create, update }: {
+          where: { keycloakId: string };
+          create: { displayName: string; status: string };
+          update: { displayName: string };
+        }) => {
+          const found = accounts.get(where.keycloakId);
+          const row = found
+            ? { ...found, ...update }
+            : { id: `sys-${accounts.size + 1}`, ...create };
+          accounts.set(where.keycloakId, row);
+          return Promise.resolve({ id: row.id });
+        },
+      ),
+    },
+    userCompany: { upsert: jest.fn(() => Promise.resolve({})) },
+  };
   const created: Record<string, unknown>[] = [];
   const requests = {
     create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
@@ -56,13 +84,13 @@ function harness(options: { found?: Record<string, unknown> | null } = {}) {
     {} as never,
     {} as never,
     {} as never,
-    { execute: jest.fn((work: (c: unknown) => unknown) => work({})) } as never,
+    { execute: jest.fn((work: (c: unknown) => unknown) => work(tx)) } as never,
     { latestFor: jest.fn(() => Promise.resolve(null)) } as never,
   );
   const submitted = jest
     .spyOn(service, 'submit')
     .mockResolvedValue({ id: 'req-1', requestNo: 'REQ-1' } as never);
-  return { service, created, submitted, requests };
+  return { service, created, submitted, requests, tx, accounts };
 }
 
 describe('CD-66 requests from customer channels', () => {
@@ -149,7 +177,7 @@ describe('CD-66 requests from customer channels', () => {
         { type_code: 'IT', requester_user_id: 'u-1', company_id: 'bco' },
         robot,
         'Bearer t',
-        'osd',
+        osdKey,
       ),
     ).rejects.toMatchObject({ code: 'COMPANY_FORBIDDEN' });
     expect(h.created).toHaveLength(0);
@@ -158,7 +186,7 @@ describe('CD-66 requests from customer channels', () => {
       { type_code: 'IT', requester_user_id: 'u-1', company_id: 'osd' },
       robot,
       'Bearer t',
-      'osd',
+      osdKey,
     );
     // and the submit runs for the named requester, not as the robot
     expect(h.submitted).toHaveBeenCalledWith(
@@ -167,6 +195,55 @@ describe('CD-66 requests from customer channels', () => {
       'Bearer t',
       { forRequester: true },
     );
+  });
+
+  it('REQ-10: no requester named → filed as the key’s "system (<name>)" account, which cannot log in', async () => {
+    const h = harness();
+    await h.service.createFromIntegration(
+      { type_code: 'IT', company_id: 'osd' },
+      robot,
+      'Bearer t',
+      osdKey,
+    );
+    expect(h.created[0]).toMatchObject({ requesterId: 'sys-1', source: 'SYSTEM' });
+    expect(h.accounts.get('apikey:key-1')).toMatchObject({
+      displayName: 'system (D CALL system)',
+      status: 'SUSPENDED',
+    });
+    expect(h.tx.userCompany.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: { userId: 'sys-1', companyId: 'osd' },
+      }),
+    );
+  });
+
+  it('REQ-10: the same key reuses its one system account and follows a renamed key', async () => {
+    const h = harness();
+    const dto = { type_code: 'IT', company_id: 'osd' };
+    await h.service.createFromIntegration(dto, robot, 'Bearer t', osdKey);
+    await h.service.createFromIntegration(dto, robot, 'Bearer t', {
+      ...osdKey,
+      name: 'D CALL (renamed)',
+    });
+    expect(h.accounts.size).toBe(1);
+    expect(h.created.map((row) => row.requesterId)).toEqual(['sys-1', 'sys-1']);
+    expect(h.accounts.get('apikey:key-1')?.displayName).toBe(
+      'system (D CALL (renamed))',
+    );
+  });
+
+  it('REQ-10: no requester and no API key → VALIDATION_FAILED, nothing written', async () => {
+    const h = harness();
+    await expect(
+      h.service.createFromIntegration(
+        { type_code: 'IT', company_id: 'osd' },
+        robot,
+        'Bearer t',
+        null,
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(h.created).toHaveLength(0);
+    expect(h.tx.user.upsert).not.toHaveBeenCalled();
   });
 
   it('CD-66 fix: submit skips only the owner check for a machine acting for the requester', async () => {
