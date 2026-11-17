@@ -136,6 +136,20 @@ export function receiverFor(
   return fixed;
 }
 
+/**
+ * The receiving team's member holding the least open work; a tie goes to the
+ * lowest id so the same data always picks the same person. No member = null.
+ */
+export function pickReceiver(
+  candidates: readonly { userId: string; open: number }[],
+): { userId: string; open: number } | null {
+  return (
+    [...candidates].sort(
+      (a, b) => a.open - b.open || a.userId.localeCompare(b.userId),
+    )[0] ?? null
+  );
+}
+
 function missingFields(
   schema: unknown,
   formData: Record<string, unknown>,
