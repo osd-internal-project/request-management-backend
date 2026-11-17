@@ -45,6 +45,17 @@ export class SoftphoneController {
   }
 
   @ApiOperation({
+    summary:
+      'ticket ใช้ครั้งเดียวสำหรับการ์ดโทรศัพท์ลอย D-Callcenter (softphone.js) ของผู้ใช้เอง · ไม่ได้ตั้งค่า = enabled:false',
+  })
+  @Post('widget-ticket')
+  @HttpCode(200)
+  @Permissions('phone.workspace.use')
+  widgetTicket(@CurrentPrincipal() principal: Principal) {
+    return this.softphone.widgetTicket(principal);
+  }
+
+  @ApiOperation({
     summary: 'บันทึกสายเข้าที่รับแล้วเป็นคำขอ CALL_LOG (ซ้ำ call_id = ตัวเดิม)',
   })
   @Post('call-logs')

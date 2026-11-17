@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -12,11 +12,19 @@ import {
 import { PageQueryDto } from '@request-management/share';
 import { REQUEST_STATUSES } from './request-response.dto';
 
+// Callers (workflow nodes, generic HTTP tools) often name the term `search`;
+// `whitelist` would otherwise drop it silently and the list would come back unfiltered.
+function qOrSearch({ value, obj }: { value: unknown; obj: Record<string, unknown> }) {
+  return value ?? obj['search'];
+}
+
 /** Filters for the request-type list an integration may offer. */
 export class ExternalTypeQueryDto {
   /** Matches the code or the name — what a person types into a chat. */
-  @ApiPropertyOptional({ example: 'pre-sales' })
+  @ApiPropertyOptional({ example: 'pre-sales', description: 'ส่งเป็น `search` ก็ได้' })
   @IsOptional()
+  @Expose()
+  @Transform(qOrSearch)
   @IsString()
   q?: string;
 
@@ -181,8 +189,10 @@ export class ExternalListRequestsDto extends PageQueryDto {
   @IsString()
   ref_id?: string;
 
-  @ApiPropertyOptional({ description: 'ค้นหาเลขที่ / อ้างอิง' })
+  @ApiPropertyOptional({ description: 'ค้นหาเลขที่ / อ้างอิง · ส่งเป็น `search` ก็ได้' })
   @IsOptional()
+  @Expose()
+  @Transform(qOrSearch)
   @IsString()
   q?: string;
 
@@ -216,10 +226,12 @@ export const DIRECTORY_SCOPES = ['company', 'team'] as const;
 
 export class ExternalUsersDto extends PageQueryDto {
   @ApiPropertyOptional({
-    description: 'ค้นจากชื่อ ชื่อผู้ใช้ หรืออีเมล',
+    description: 'ค้นจากชื่อ ชื่อผู้ใช้ หรืออีเมล · ส่งเป็น `search` ก็ได้',
     example: 'ชนะกุล',
   })
   @IsOptional()
+  @Expose()
+  @Transform(qOrSearch)
   @IsString()
   q?: string;
 

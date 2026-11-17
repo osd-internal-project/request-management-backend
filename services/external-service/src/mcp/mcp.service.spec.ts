@@ -107,6 +107,7 @@ describe('MCP — the protocol', () => {
         { name: 'get_request_types', description: '', inputSchema: {} },
       ],
       has: (name: string) => name === 'get_request_types',
+      methodOf: () => 'GET',
       call: jest.fn(toolAnswer),
       reasonUnavailable: () => unavailable,
     };
@@ -121,6 +122,7 @@ describe('MCP — the protocol', () => {
         callLog as never,
       ),
       tools,
+      actors,
       callLog,
     };
   }
@@ -136,6 +138,12 @@ describe('MCP — the protocol', () => {
       },
       httpRequest(),
       principal(),
+    );
+    // a company key reads without a person only on GET, and every MCP request is a POST
+    expect(ok.actors.resolve).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'GET',
     );
     expect(ok.callLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
