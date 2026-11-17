@@ -13,6 +13,15 @@ import type {
   RequestType,
 } from '@prisma/client';
 
+/** Statuses that still sit in somebody's queue — what auto-receive balances on. */
+const OPEN_FOR_LOAD: readonly RequestStatus[] = [
+  'submitted',
+  'returned',
+  'in_progress',
+  'on_hold',
+  'pending_approval',
+];
+
 export type RequestWithType = Request & {
   requestType: RequestType;
   attachments: RequestAttachment[];
@@ -316,6 +325,73 @@ export class RequestRepository extends BaseRepository<
       where: { id: userId, companies: { some: { companyId } } },
       select: { id: true },
     });
+  }
+
+  /** Active people of the company whose own unit is exactly this one (no sub-units). */
+  async teamMemberIds(companyId: string, orgUnitId: string): Promise<string[]> {
+    const rows = await this.prisma.user.findMany({
+      where: {
+        orgUnitId,
+        status: 'ACTIVE',
+        companies: { some: { companyId } },
+      },
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
+  }
+
+  /** The unit's manager, when still active in the company — who takes an empty team's work. */
+  async activeManagerOf(
+    companyId: string,
+    orgUnitId: string,
+  ): Promise<string | null> {
+    const unit = await this.prisma.orgUnit.findFirst({
+      where: { id: orgUnitId, companyId },
+      select: {
+        manager: {
+          select: {
+            id: true,
+            status: true,
+            companies: { where: { companyId }, select: { id: true } },
+          },
+        },
+      },
+    });
+    const manager = unit?.manager;
+    return manager?.status === 'ACTIVE' && manager.companies.length
+      ? manager.id
+      : null;
+  }
+
+  /**
+   * Requests still open per person, counting each once whether they receive
+   * it, hold it, or both — every type in the company.
+   */
+  async openLoad(
+    companyId: string,
+    userIds: string[],
+  ): Promise<Map<string, number>> {
+    if (!userIds.length) return new Map();
+    const rows = await this.prisma.request.findMany({
+      where: {
+        companyId,
+        status: { in: [...OPEN_FOR_LOAD] },
+        OR: [
+          { receiverUserId: { in: userIds } },
+          { assigneeUserId: { in: userIds } },
+        ],
+      },
+      select: { receiverUserId: true, assigneeUserId: true },
+    });
+    const load = new Map<string, number>();
+    for (const row of rows) {
+      for (const userId of new Set([row.receiverUserId, row.assigneeUserId])) {
+        if (userId && userIds.includes(userId)) {
+          load.set(userId, (load.get(userId) ?? 0) + 1);
+        }
+      }
+    }
+    return load;
   }
 
   /** Direct children still running — what blocks a parent's completion. */

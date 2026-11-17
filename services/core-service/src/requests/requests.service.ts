@@ -40,6 +40,7 @@ import {
   assertUsableSubRequestTypes,
   missingRequiredSubRequests,
   receiverFor,
+  pickReceiver,
   type SubRequestTypeRule,
 } from './submit-rules';
 import {
@@ -1204,6 +1205,61 @@ export class RequestsService {
   // --- the ticket: receive, assign, complete, close -----------------------
 
   /**
+   * No receiver named and none fixed by the type, but a receiving team: hand it
+   * to the team member holding the least open work, or to the team's manager
+   * when it has no members (17 Nov 2026, user decision).
+   * Written before the submit's own checks, so a submit that fails later keeps
+   * the receiver on the draft — the next submit sees the same person.
+   */
+  private async withTeamReceiver(
+    request: RequestWithType,
+    actor: Principal,
+  ): Promise<RequestWithType> {
+    if (
+      request.receiverUserId ||
+      request.requestType.receiverUserId ||
+      !request.receiverOrgUnitId
+    ) {
+      return request;
+    }
+    const members = await this.requests.teamMemberIds(
+      request.companyId,
+      request.receiverOrgUnitId,
+    );
+    const loads = await this.requests.openLoad(request.companyId, members);
+    const least = pickReceiver(
+      members.map((userId) => ({ userId, open: loads.get(userId) ?? 0 })),
+    );
+    const manager = least
+      ? null
+      : await this.requests.activeManagerOf(
+          request.companyId,
+          request.receiverOrgUnitId,
+        );
+    const chosen = least ?? (manager ? { userId: manager, open: null } : null);
+    if (!chosen) return request;
+
+    await this.transactions.execute(async (prisma) => {
+      await prisma.request.update({
+        where: { id: request.id },
+        data: { receiverUserId: chosen.userId, updatedBy: actor.userId },
+      });
+      await this.recordEvent(prisma, {
+        requestId: request.id,
+        type: 'request.receiver_auto_assigned',
+        actor,
+        data: {
+          receiver_user_id: chosen.userId,
+          org_unit_id: request.receiverOrgUnitId,
+          open_requests: chosen.open,
+          reason: least ? 'least_open' : 'team_manager',
+        },
+      });
+    });
+    return { ...request, receiverUserId: chosen.userId };
+  }
+
+  /**
    * A submit needs somebody to hand the ticket to.
    *
    * Named by the requester rather than resolved from the type's receiving unit:
@@ -1983,7 +2039,7 @@ export class RequestsService {
       receivedAt?: Date;
     } = {},
   ) {
-    const before = await this.require(id, actor);
+    let before = await this.require(id, actor);
     const receivedAt = receivedWithin(options.receivedAt);
 
     // v2: submitting is advancing off the requester's step.
@@ -2039,6 +2095,7 @@ export class RequestsService {
      * no one's queue is invisible, and invisible is the failure mode this
      * whole system exists to prevent.
      */
+    before = await this.withTeamReceiver(before, actor);
     await this.assertReceivable(before);
 
     // A :pre ladder that cannot resolve must fail here, before the number and clock.
@@ -2592,6 +2649,7 @@ export class RequestsService {
     const submitting =
       target !== null && isSubmitMove(before.status, scopeOf(target));
     if (submitting && scopeOf(target) === 'submitted') {
+      before = await this.withTeamReceiver(before, actor);
       await this.assertReceivable(before);
     }
     // CD-67 — a case type must carry a severity before its clocks start.

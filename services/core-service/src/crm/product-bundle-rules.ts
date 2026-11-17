@@ -67,6 +67,28 @@ export function bundleKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/**
+ * Active bundles whose name is close to one that matched nothing: the sought
+ * name sits inside the bundle's name ("D-Contact" → "ระบบ D-Contact 10
+ * license") or the other way round. Shown so a person can pick the right one.
+ */
+export function similarBundleNames(
+  sought: string,
+  names: readonly string[],
+  limit = 5,
+): string[] {
+  const key = bundleKey(sought);
+  if (!key) return [];
+  return names
+    .filter((name) => {
+      const other = bundleKey(name);
+      return (
+        !!other && other !== key && (other.includes(key) || key.includes(other))
+      );
+    })
+    .slice(0, limit);
+}
+
 export function cleanBundle(
   input: BundleInput,
 ): { ok: true; value: CleanBundle } | { ok: false; problems: Problem[] } {
