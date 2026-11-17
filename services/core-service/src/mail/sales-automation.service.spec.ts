@@ -333,6 +333,36 @@ describe('SalesAutomationService — why a sales workflow stopped (11 พ.ย. 2
       });
     });
 
+    it('a product name no bundle carries names the bundles close to it', async () => {
+      const bundle = (id: string, name: string) => ({
+        id,
+        name,
+        note: '',
+        active: true,
+        updatedAt: new Date(),
+        items: [],
+      });
+      const view = await harness({
+        lead: {
+          ...LEAD,
+          subProduct: null,
+          intakeData: { selected_product: 'D-Contact' },
+        },
+        bundles: [
+          bundle('bundle-1', 'ระบบ D-Contact 10 license'),
+          bundle('bundle-2', 'ระบบ D-Contact 20 license'),
+          bundle('bundle-3', 'IP-PHONE'),
+        ],
+      }).service.forLead('lead-1', seller);
+      const check = checkOf(view, 'quote', 'products');
+      expect(check.ok).toBe(false);
+      expect(check.detail).toContain('ไม่พบชุดรายการชื่อ "D-Contact"');
+      expect(check.detail).toContain(
+        'ชุดที่ชื่อใกล้เคียง: ระบบ D-Contact 10 license, ระบบ D-Contact 20 license',
+      );
+      expect(check.detail).not.toContain('IP-PHONE');
+    });
+
     it('a Lead with no product says so before any price is looked up', async () => {
       const view = await harness({
         lead: { ...LEAD, subProduct: null },
