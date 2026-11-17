@@ -38,7 +38,7 @@ describe('P3 owned rows — every way in, one rule', () => {
   it('Q10 no unit column: the owner’s current unit places the row', () => {
     expect(
       ownedBranches({ ...me, ledUnitIds: ['sales'] }, { users: ['managerUserId'], ownerRelation: 'manager' }),
-    ).toEqual([{ managerUserId: 'me' }, { manager: { orgUnitId: { in: ['sales'] } } }]);
+    ).toEqual([{ managerUserId: 'me' }, { manager: { companies: { some: { orgUnitId: { in: ['sales'] } } } } }]);
   });
 
   it('S1/S8 company pinned always; .read.all is the whole company', () => {

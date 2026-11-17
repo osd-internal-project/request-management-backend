@@ -162,7 +162,7 @@ export class OrgService {
       active: unit.active,
       managerUserId: unit.managerUserId,
       managerDisplayName: unit.manager?.displayName ?? null,
-      memberCount: unit._count.members,
+      memberCount: unit._count.companyMembers,
     }));
   }
 
@@ -992,9 +992,8 @@ export class OrgService {
       No unit is no longer the end of the story: somebody in the รอจัดสังกัด
       queue can still hold a grant written to them by name.
     */
-    const ancestors = user.orgUnitId
-      ? await this.closure.ancestorsOf(user.orgUnitId)
-      : [];
+    const orgUnitId = await this.memberships.orgUnitOf(userId, companyId);
+    const ancestors = orgUnitId ? await this.closure.ancestorsOf(orgUnitId) : [];
 
     const grants = await this.scopes.findForViewers(
       ancestors.map((row) => row.ancestorId),

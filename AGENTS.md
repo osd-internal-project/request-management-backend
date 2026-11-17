@@ -228,6 +228,11 @@ key's scopes through the `x-api-key-scopes` header core forwards on
 the source of truth for supervisors, which drives data scope, approval step 1,
 and escalation — none of which a Keycloak group can express.
 
+**A person's unit is per company** (17 Nov 2026, user decision): `user_companies.orgUnitId`, one
+row per membership, so one Keycloak account sits in OSD's RND and D CALL's RND at once. Read it for
+the company being acted in — never `users.orgUnitId`, which only legacy writers still set (triggers
+in `20261117100000_user_company_org_unit` copy it across until they move).
+
 ## หน้าจอ: อ่าน §16 ก่อนเขียนเสมอ
 
 **ทุกหน้าจอต้องอ้าง `docs/ctd-foundation-spec.md` §16** ซึ่งระบุเมนู คอลัมน์
@@ -659,4 +664,5 @@ The domain rules most at risk of drifting are written and unit-tested:
 - `services/core-service/src/crm/quotation-math.ts` (CD-76)
 
 - Before adding config rows through the web or API, read-only query the DB first (target user, company, existing rows, role permissions) so the write path is chosen from facts, not discovered by a 403.
+- UAT (ctd-uat) runs its own deploy and database: when asked to retry a call there, fire it and report the real response — never skip it on a prediction from local code (17 Nov 2026).
 - Before a plan relies on a step outside this machine (server shell, another admin, console access), confirm with the user that someone can actually do it; plan only on access already proven.

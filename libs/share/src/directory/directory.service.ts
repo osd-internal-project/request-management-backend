@@ -75,7 +75,11 @@ export class DirectoryService {
       this.directory.countWhere(where),
     ]);
 
-    return paginated(rows.map(toEntry), query, total);
+    return paginated(
+      rows.map((row) => toEntry(row, subject.activeCompanyId)),
+      query,
+      total,
+    );
   }
 
   /**
@@ -93,12 +97,15 @@ export class DirectoryService {
     const scoped = visibleUsersWhere(subject) as Prisma.UserWhereInput;
     const narrowing: Prisma.UserWhereInput[] = [{ status: 'ACTIVE' }];
 
+    const companyId = subject.activeCompanyId;
     if (query.org_unit_id) {
-      narrowing.push({ orgUnitId: query.org_unit_id });
+      narrowing.push({ companies: { some: { companyId, orgUnitId: query.org_unit_id } } });
     }
 
     if (query.orgUnitIds) {
-      narrowing.push({ orgUnitId: { in: [...query.orgUnitIds] } });
+      narrowing.push({
+        companies: { some: { companyId, orgUnitId: { in: [...query.orgUnitIds] } } },
+      });
     }
 
     const term = query.q?.trim();
@@ -117,7 +124,8 @@ export class DirectoryService {
   }
 }
 
-function toEntry(row: DirectoryRow): DirectoryEntry {
+function toEntry(row: DirectoryRow, companyId: string): DirectoryEntry {
+  const placement = row.companies.find((m) => m.companyId === companyId);
   return {
     id: row.id,
     displayName: row.displayName,
@@ -128,7 +136,7 @@ function toEntry(row: DirectoryRow): DirectoryEntry {
     extension: row.extension,
     startWork: row.startWork,
     phone: row.phone,
-    orgUnitId: row.orgUnitId,
-    orgUnitName: row.orgUnit?.name ?? null,
+    orgUnitId: placement?.orgUnitId ?? null,
+    orgUnitName: placement?.orgUnit?.name ?? null,
   };
 }

@@ -39,7 +39,7 @@ export class OrgUnitRepository extends BaseRepository<
     option?: TxOption,
   ): Promise<string | null> {
     const unit = (await this.findFirst(
-      { where: { companyId, members: { some: { id: userId } } }, select: { id: true } },
+      { where: { companyId, companyMembers: { some: { userId, companyId } } }, select: { id: true } },
       option,
     )) as { id: string } | null;
     return unit?.id ?? null;

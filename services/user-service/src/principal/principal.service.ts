@@ -195,6 +195,11 @@ export class PrincipalService {
       );
     }
 
+    // The person's unit in the company they act in — never another company's unit.
+    const orgUnitId =
+      memberships.find((m) => m.companyId === activeCompanyId)?.orgUnitId ??
+      null;
+
     // Keycloak is login only: roles come from grants made in this app, never from token roles.
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
     const permissions = await this.roles.effectivePermissions(
@@ -223,7 +228,7 @@ export class PrincipalService {
       this.policy.listAllSensitiveFieldKeys(),
       this.org.ledUnitIdsOf(user.id, activeCompanyId),
       this.org.levelUnitIdsOf(
-        user.orgUnitId,
+        orgUnitId,
         activeCompanyId,
         visibilityLevels,
       ),
@@ -244,7 +249,7 @@ export class PrincipalService {
       email: user.email,
       companies,
       activeCompanyId,
-      orgUnitId: user.orgUnitId,
+      orgUnitId,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds,
       levelUnitIds,
@@ -264,7 +269,8 @@ export class PrincipalService {
         would be invited to assign a team to a robot.
       */
       isServiceAccount: false,
-      pendingOrgAssignment: user.orgUnitId === null,
+      // Still "nobody has placed this person anywhere" — a D CALL member placed only in OSD is not locked out.
+      pendingOrgAssignment: !memberships.some((m) => m.orgUnitId),
     };
   }
 

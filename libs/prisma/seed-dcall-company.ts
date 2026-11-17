@@ -1,12 +1,12 @@
 /**
  * Create the "D CALL" company from OSD: the same people with the same roles,
- * a copy of OSD's org chart, request type DC-RQ-001 copied from DCRQ001, and
- * 5 mock customers + 5 mock projects.
+ * a copy of OSD's org chart, request type DC-RQ-001 copied from DCRQ001, OSD's
+ * product catalog, and 5 mock customers + 5 mock projects.
  *
  *   DCALL_SEED_ALLOW=1 yarn dcall:seed
  *
- * People keep their place in OSD's chart: `users.orgUnitId` holds one unit for
- * the whole system, so the copied units carry their managers only. Roles come
+ * Each person sits in D CALL's copy of their OSD unit (`user_companies.orgUnitId`
+ * is per company) and keeps their place in OSD. Roles come
  * across as MANUAL grants (Keycloak is login only). `uat_superadmin` is not
  * copied — `yarn uat:seed` owns it (AGENTS.md). Idempotent — safe to re-run.
  */
@@ -93,7 +93,7 @@ async function copyRoles(sourceId: string, companyId: string): Promise<Map<strin
 async function copyOrgChart(
   sourceId: string,
   companyId: string,
-): Promise<{ rootId: string; units: number }> {
+): Promise<{ rootId: string; units: number; unitMap: Map<string, string> }> {
   const units = await prisma.orgUnit.findMany({ where: { companyId: sourceId } });
   const ids = units.map((u) => u.id);
   const closure = await prisma.orgClosure.findMany({ where: { descendantId: { in: ids } } });
@@ -133,21 +133,54 @@ async function copyOrgChart(
     }),
     skipDuplicates: true,
   });
-  return { rootId, units: map.size };
+  return { rootId, units: map.size, unitMap: map };
 }
 
-async function copyPeople(sourceId: string, companyId: string, roles: Map<string, string>) {
+async function copyPeople(
+  sourceId: string,
+  companyId: string,
+  roles: Map<string, string>,
+  unitMap: Map<string, string>,
+) {
   const members = await prisma.userCompany.findMany({ where: { companyId: sourceId } });
   await prisma.userCompany.createMany({
     data: members.map((m) => ({ userId: m.userId, companyId, isPrimary: false })),
     skipDuplicates: true,
   });
+  // Each person sits in D CALL's copy of their OSD unit; OSD's placement stays as it is.
+  for (const m of members) {
+    const orgUnitId = m.orgUnitId ? unitMap.get(m.orgUnitId) : undefined;
+    if (!orgUnitId) continue;
+    await prisma.userCompany.update({
+      where: { userId_companyId: { userId: m.userId, companyId } },
+      data: { orgUnitId },
+    });
+  }
   const grants = await prisma.userRole.findMany({ where: { companyId: sourceId } });
   await prisma.userRole.createMany({
     data: grants.flatMap((g) => {
       const roleId = roles.get(g.roleId);
       return roleId ? [{ userId: g.userId, roleId, companyId, source: 'MANUAL' as const }] : [];
     }),
+    skipDuplicates: true,
+  });
+}
+
+/** OSD's product catalog as D CALL's own rows (codes are unique per company). */
+async function copyProducts(sourceId: string, companyId: string) {
+  const products = await prisma.product.findMany({ where: { companyId: sourceId } });
+  await prisma.product.createMany({
+    data: products.map((p) => ({
+      companyId,
+      code: p.code,
+      name: p.name,
+      unit: p.unit,
+      groupCode: p.groupCode,
+      groupName: p.groupName,
+      active: p.active,
+      source: p.source,
+      syncedAt: p.syncedAt,
+    })),
     skipDuplicates: true,
   });
 }
@@ -271,8 +304,9 @@ async function main(): Promise<void> {
     create: COMPANY,
   });
   const roles = await copyRoles(source.id, company.id);
-  const { rootId, units } = await copyOrgChart(source.id, company.id);
-  await copyPeople(source.id, company.id, roles);
+  const { rootId, units, unitMap } = await copyOrgChart(source.id, company.id);
+  await copyPeople(source.id, company.id, roles, unitMap);
+  await copyProducts(source.id, company.id);
   await copyRequestType(company.id, rootId);
 
   // the copied root's manager owns the mocks; the chart is OSD's, so it has one
@@ -285,7 +319,9 @@ async function main(): Promise<void> {
     roles: await prisma.role.count({ where }),
     units,
     members: await prisma.userCompany.count({ where }),
+    placed: await prisma.userCompany.count({ where: { ...where, orgUnitId: { not: null } } }),
     grants: await prisma.userRole.count({ where }),
+    products: await prisma.product.count({ where }),
     customers: await prisma.customer.count({ where }),
     projects: await prisma.project.count({ where }),
   };

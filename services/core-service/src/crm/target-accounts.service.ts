@@ -329,8 +329,9 @@ export class TargetAccountsService {
         status: 'ACTIVE',
         companies: { some: { companyId: actor.activeCompanyId } },
       },
-      select: { id: true, orgUnitId: true },
-    })) as { id: string; orgUnitId: string | null } | null;
+      // the owner's unit in THIS company, not another company's
+      select: { id: true, companies: { where: { companyId: actor.activeCompanyId }, select: { orgUnitId: true } } },
+    })) as { id: string; companies: { orgUnitId: string | null }[] } | null;
     if (!member) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -338,7 +339,7 @@ export class TargetAccountsService {
         [{ field: 'owner_user_id', reason: userId }],
       );
     }
-    return member;
+    return { id: member.id, orgUnitId: member.companies[0]?.orgUnitId ?? null };
   }
 
   private async displayNames(ids: (string | null)[]) {
