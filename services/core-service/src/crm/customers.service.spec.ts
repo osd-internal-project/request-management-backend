@@ -254,6 +254,10 @@ function harness(options: {
         Promise.resolve([{ id: 'ctr-1', contractNo: 'CTR-2569-0001' }]),
       ),
     } as never,
+    // CD-239 — the customer's service work orders
+    {
+      findMany: jest.fn(() => Promise.resolve([{ requestId: 'req-job' }])),
+    } as never,
   );
 
   return {
@@ -540,7 +544,9 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     expect(summary.requests).toEqual({ total: 0, open: 0 });
     // both counts (total + open) went through the request repository —
     // meaning visibleRequestsWhere, not a hand-rolled where.
-    expect(requestCount).toHaveBeenCalledTimes(2);
+    // — and the cases card the same way (total + open)
+    expect(requestCount).toHaveBeenCalledTimes(4);
+    expect(summary.cases).toEqual({ total: 0, open: 0 });
     expect(summary.financials).toBeNull();
   });
 
@@ -575,6 +581,8 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
               refId: 'CUS-OSD-000001',
               companyId: OSD,
             },
+            // — or is one of its service work orders, whatever it names
+            { id: { in: ['req-job'] } },
             // CD-67 — a case raised against one of its contracts
             {
               refType: 'contract',
@@ -591,6 +599,14 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     });
     // open = total's where AND a status filter
     expect(requestWheres[1].AND[0]).toEqual(requestWheres[0]);
+    // the cases card: the same rows, narrowed to what the cases tab shows
+    expect(requestWheres[2]).toEqual({
+      AND: [
+        requestWheres[0],
+        { OR: [{ severity: { not: null } }, { id: { in: ['req-job'] } }] },
+      ],
+    });
+    expect(requestWheres[3].AND[0]).toEqual(requestWheres[2]);
 
     const [[opportunityArgs]] = opportunityCount.mock.calls as [Counted][];
     expect(opportunityArgs.where.AND[0]).toEqual({
@@ -614,6 +630,26 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('a service work order is a case even without a severity', async () => {
+    const { service, requestFindMany } = harness({});
+    requestFindMany.mockResolvedValueOnce([
+      { id: 'req-job', severity: null },
+      { id: 'req-sev', severity: 'high' },
+      { id: 'req-plain', severity: null },
+    ] as never);
+
+    const { rows } = await service.requestsOf(
+      'cust-1',
+      principal(['crm.customer.read', 'request.read']),
+    );
+
+    expect(rows.map((row) => [row.id, row.isCase])).toEqual([
+      ['req-job', true],
+      ['req-sev', true],
+      ['req-plain', false],
+    ]);
+  });
+
   it('C360-04 a viewer without request.read gets null, not a number that 403s on click', async () => {
     const { service, requestCount } = harness({});
 
@@ -623,6 +659,7 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     );
 
     expect(summary.requests).toBeNull();
+    expect(summary.cases).toBeNull();
     expect(requestCount).not.toHaveBeenCalled();
   });
 
