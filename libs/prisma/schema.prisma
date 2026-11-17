@@ -3643,6 +3643,8 @@ model Product {
   /// B1 `ItemCode` — ค่าที่ใส่ใน `productCode` ของบรรทัดใบเสนอราคา/ใบสั่งขาย.
   code      String
   name      String
+  /// What the product is, from its brochure (17 Nov 2026) — lets a search or an AI match content to it.
+  description String?
   /// หน่วยขาย (B1 `SalesUnit`) — เติมลงบรรทัดตอนเลือกสินค้า.
   unit      String?
   /// CD-200 กลุ่มสินค้าใน SAP (B1 `ItemsGroupCode` / `ItemGroups.GroupName`).

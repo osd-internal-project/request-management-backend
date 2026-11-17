@@ -437,7 +437,7 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
             }
           : {}),
       },
-      select: { code: true, name: true, unit: true, active: true },
+      select: { code: true, name: true, unit: true, active: true, description: true },
       orderBy: { code: 'asc' },
       take: SEARCH_LIMIT,
     });
