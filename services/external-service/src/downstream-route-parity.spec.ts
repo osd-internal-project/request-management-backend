@@ -29,6 +29,7 @@ const CONTROLLERS = [
   'presales/solutions.controller.ts',
   'legal/contracts.controller.ts',
   'pm/projects.controller.ts',
+  'catalog/products.controller.ts',
   'delivery/delivery.controller.ts',
   'support/support.controller.ts',
   'flow/flow.controller.ts',
@@ -171,6 +172,8 @@ const PAIRS: readonly (readonly [string, string, string])[] = [
  */
 const OWN: Readonly<Record<string, string[]>> = {
   'GET flow/opportunities/:id': ['crm.sales.read'],
+  // the screen's `products` takes either of two (`@AnyPermission`); one acting gate here
+  'GET products': ['crm.sales.read'],
   // CD-276 — the assistant's questions, each behind its screen's permission
   'GET assistant/summary': ['notification.read'],
   'GET assistant/deals/closing': ['crm.sales.read'],

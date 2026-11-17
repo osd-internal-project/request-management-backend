@@ -32,6 +32,7 @@ import { McpModule } from './mcp/mcp.module';
 import { PresalesModule } from './presales/presales.module';
 import { LegalModule } from './legal/legal.module';
 import { PmModule } from './pm/pm.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
@@ -88,6 +89,7 @@ import configs from './configs';
     PresalesModule,
     LegalModule,
     PmModule,
+    CatalogModule,
     DeliveryModule,
     SupportApiModule,
     FlowModule,
