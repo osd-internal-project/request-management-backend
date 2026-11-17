@@ -46,7 +46,10 @@ export function ownedBranches(
   if (units.length) {
     if (columns.unit) branches.push({ [columns.unit]: { in: units } });
     if (columns.ownerRelation) {
-      branches.push({ [columns.ownerRelation]: { orgUnitId: { in: units } } });
+      // units are the subject's company's, so a membership placed in one is that company's
+      branches.push({
+        [columns.ownerRelation]: { companies: { some: { orgUnitId: { in: units } } } },
+      });
     }
   }
 

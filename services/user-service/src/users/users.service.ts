@@ -153,7 +153,7 @@ function toDirectoryUser(row: AdminDirectoryRow): DirectoryUser {
     extension: row.extension,
     startWork: row.startWork,
     phone: row.phone,
-    orgUnitName: row.orgUnit?.name ?? null,
+    orgUnitName: row.companies[0]?.orgUnit?.name ?? null,
     managedUnitNames: row.managedUnits.map((unit) => unit.name),
     roles: row.roles.map((held) => held.role.name),
   };

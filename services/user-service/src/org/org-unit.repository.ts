@@ -62,7 +62,7 @@ export class OrgUnitRepository extends BaseRepository<
   ): Promise<
     (OrgUnit & {
       manager: { id: string; displayName: string } | null;
-      _count: { members: number };
+      _count: { companyMembers: number };
     })[]
   > {
     const client = option?.prisma ?? this.prisma;
@@ -71,7 +71,7 @@ export class OrgUnitRepository extends BaseRepository<
       where: { companyId },
       include: {
         manager: { select: { id: true, displayName: true } },
-        _count: { select: { members: true } },
+        _count: { select: { companyMembers: true } },
       },
       orderBy: [{ kind: 'asc' }, { name: 'asc' }],
     });
@@ -103,7 +103,7 @@ export class OrgUnitRepository extends BaseRepository<
         select: {
           _count: {
             select: {
-              members: true,
+              companyMembers: true,
               children: true,
               receivedTypes: true,
               biAudiences: true,
@@ -111,7 +111,11 @@ export class OrgUnitRepository extends BaseRepository<
           },
         },
       })
-      .then((unit) => unit?._count ?? null);
+      .then((unit) => {
+        if (!unit) return null;
+        const { companyMembers, ...rest } = unit._count;
+        return { members: companyMembers, ...rest };
+      });
   }
 
   /** All units in the company, used to rebuild the closure after an edit. */

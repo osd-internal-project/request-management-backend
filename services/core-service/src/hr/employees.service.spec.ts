@@ -12,9 +12,10 @@ const member = {
     extension: null,
     startWork: new Date('2020-01-01T00:00:00Z'),
     status: 'ACTIVE',
-    orgUnit: { id: 'ou', name: 'ทีมติดตั้ง' },
     supervisor: null,
   },
+  // the unit lives on the membership — this company's chart
+  orgUnit: { id: 'ou', name: 'ทีมติดตั้ง' },
 };
 
 const actor = (userId: string, permissions: string[]) =>

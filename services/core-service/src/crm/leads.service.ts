@@ -971,8 +971,9 @@ export class LeadsService {
         status: 'ACTIVE',
         companies: { some: { companyId: actor.activeCompanyId } },
       },
-      select: { id: true, orgUnitId: true },
-    })) as { id: string; orgUnitId: string | null } | null;
+      // the owner's unit in THIS company, not another company's
+      select: { id: true, companies: { where: { companyId: actor.activeCompanyId }, select: { orgUnitId: true } } },
+    })) as { id: string; companies: { orgUnitId: string | null }[] } | null;
 
     if (!member) {
       throw new AppError(
@@ -982,7 +983,7 @@ export class LeadsService {
       );
     }
 
-    return member;
+    return { id: member.id, orgUnitId: member.companies[0]?.orgUnitId ?? null };
   }
 
   private async assertCustomer(customerId: string, actor: Principal) {

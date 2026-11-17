@@ -358,7 +358,9 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        LEFT JOIN logged lg ON lg.company_id = cap.company_id
          AND lg.user_id = cap.user_id AND lg.month = cap.month
        LEFT JOIN users u ON u.id = cap.user_id
-       LEFT JOIN org_units ou ON ou.id = u."orgUnitId"
+       LEFT JOIN user_companies uc
+         ON uc."userId" = cap.user_id AND uc."companyId" = cap.company_id
+       LEFT JOIN org_units ou ON ou.id = uc."orgUnitId"
        LEFT JOIN hr_employees e
          ON e."companyId" = cap.company_id AND e."userId" = cap.user_id
        LEFT JOIN hr_levels lv ON lv.id = e."levelId"`,

@@ -38,9 +38,10 @@ interface Member {
     extension: string | null;
     startWork: Date | null;
     status: string;
-    orgUnit: { id: string; name: string } | null;
     supervisor: { id: string; displayName: string } | null;
   };
+  /** The person's unit in this company's chart. */
+  orgUnit: { id: string; name: string } | null;
 }
 
 interface Profile {
@@ -114,7 +115,7 @@ export class EmployeesService {
             }
           : {}),
       },
-      include: { user: { select: USER_SELECT } },
+      include: { user: { select: USER_SELECT }, orgUnit: { select: { id: true, name: true } } },
       take: LIST_LIMIT,
     })) as unknown as Member[];
     const ids = members.map((member) => member.user.id);
@@ -421,7 +422,7 @@ export class EmployeesService {
   private async rowsFor(companyId: string, userIds: string[]) {
     const members = (await this.members.findMany({
       where: { companyId, userId: { in: userIds } },
-      include: { user: { select: USER_SELECT } },
+      include: { user: { select: USER_SELECT }, orgUnit: { select: { id: true, name: true } } },
     })) as unknown as Member[];
     const [profiles, skills] = await Promise.all([
       this.profilesOf(companyId, userIds),
@@ -437,7 +438,7 @@ export class EmployeesService {
   private async requireMember(companyId: string, userId: string) {
     const member = (await this.members.findFirst({
       where: { companyId, userId },
-      include: { user: { select: USER_SELECT } },
+      include: { user: { select: USER_SELECT }, orgUnit: { select: { id: true, name: true } } },
     })) as unknown as Member | null;
     if (!member) throw new AppError('NOT_FOUND', 'ไม่พบพนักงานที่ระบุ');
     return member;
@@ -476,7 +477,6 @@ const USER_SELECT = {
   extension: true,
   startWork: true,
   status: true,
-  orgUnit: { select: { id: true, name: true } },
   supervisor: { select: { id: true, displayName: true } },
 };
 
@@ -498,7 +498,7 @@ export function view(
     extension: user.extension,
     startWork: day(user.startWork),
     accountStatus: user.status,
-    orgUnit: user.orgUnit,
+    orgUnit: member.orgUnit,
     supervisor: user.supervisor,
     profile: {
       saved: Boolean(profile),

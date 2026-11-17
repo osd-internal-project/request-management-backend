@@ -48,9 +48,8 @@ export class CompanyMemberRepository extends BaseRepository<
     return await this.findMany(
       {
         where: {
-          orgUnitId: { in: [...orgUnitIds] },
           status: 'ACTIVE',
-          companies: { some: { companyId } },
+          companies: { some: { companyId, orgUnitId: { in: [...orgUnitIds] } } },
         },
         select: { id: true, displayName: true, email: true },
         orderBy: { displayName: 'asc' },
@@ -91,9 +90,9 @@ export class CompanyMemberRepository extends BaseRepository<
   async orgUnitIdOf(userId: string, companyId: string): Promise<string | null> {
     const row = (await this.findFirst({
       where: { id: userId, companies: { some: { companyId } } },
-      select: { orgUnitId: true },
-    })) as { orgUnitId: string | null } | null;
-    return row?.orgUnitId ?? null;
+      select: { companies: { where: { companyId }, select: { orgUnitId: true } } },
+    })) as { companies: { orgUnitId: string | null }[] } | null;
+    return row?.companies[0]?.orgUnitId ?? null;
   }
 
   async memberIdsOf(

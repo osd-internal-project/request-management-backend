@@ -1476,8 +1476,9 @@ export class CustomersService {
         status: 'ACTIVE',
         companies: { some: { companyId: actor.activeCompanyId } },
       },
-      select: { id: true, orgUnitId: true },
-    })) as { id: string; orgUnitId: string | null } | null;
+      // the owner's unit in THIS company, not another company's
+      select: { id: true, companies: { where: { companyId: actor.activeCompanyId }, select: { orgUnitId: true } } },
+    })) as { id: string; companies: { orgUnitId: string | null }[] } | null;
 
     if (!owner) {
       throw new AppError('VALIDATION_FAILED', 'ไม่พบผู้รับผิดชอบบัญชีที่ระบุ', [
@@ -1485,7 +1486,7 @@ export class CustomersService {
       ]);
     }
 
-    return owner;
+    return { id: owner.id, orgUnitId: owner.companies[0]?.orgUnitId ?? null };
   }
 
   /** Values must exist, be active, and belong to this company (SCOPE-03). */

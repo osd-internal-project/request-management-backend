@@ -65,8 +65,9 @@ function monitorWith(options: {
         findMany: jest.fn(() => Promise.resolve(steps.shift() ?? [])),
         update: jest.fn(() => Promise.resolve({})),
       },
-      user: {
-        findUnique: jest.fn(() => Promise.resolve({ orgUnitId: 'ou-1' })),
+      // the person's unit in the request's company
+      userCompany: {
+        findFirst: jest.fn(() => Promise.resolve({ orgUnitId: 'ou-1' })),
       },
       $transaction: jest.fn(() => Promise.resolve()),
     } as never,
