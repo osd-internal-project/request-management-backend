@@ -216,7 +216,7 @@ export class CustomersService {
    * the page does not ask then (C360-04).
    */
   async requestsOf(id: string, actor: Principal) {
-    await this.findOne(id, actor);
+    const customer = await this.findOne(id, actor);
     if (!hasPermission(actor, 'request.read')) {
       throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ดูคำขอ');
     }
@@ -225,7 +225,7 @@ export class CustomersService {
         where: {
           AND: [
             visibleRequestsWhere(accessSubject(actor)),
-            await this.customerRequestsWhere(id),
+            await this.customerRequestsWhere(customer),
           ],
         },
         orderBy: { createdAt: 'desc' },
@@ -268,14 +268,18 @@ export class CustomersService {
 
   /**
    * What "about this customer" means for a request: its ref names the
-   * customer, one of its deals (by code or id — screens send the code), one
+   * customer (by id, or by code within its company — a service work order
+   * and the intake channels send the code), one of its deals (by code or id — screens send the code), one
    * of its quotations, or one of its contracts (CD-67 — a case raised
    * against a contract, by number or id). Request visibility is applied by
    * the caller.
    */
-  private async customerRequestsWhere(
-    id: string,
-  ): Promise<Prisma.RequestWhereInput> {
+  private async customerRequestsWhere(customer: {
+    id: string;
+    customerCode: string;
+    companyId: string;
+  }): Promise<Prisma.RequestWhereInput> {
+    const { id } = customer;
     const [deals, quotes, contracts] = await Promise.all([
       this.opportunities.findMany({
         where: { customerId: id },
@@ -295,6 +299,11 @@ export class CustomersService {
     return {
       OR: [
         { refType: 'customer', refId: id },
+        {
+          refType: 'customer',
+          refId: customer.customerCode,
+          companyId: customer.companyId,
+        },
         ...(contracts.length
           ? [
               {
@@ -328,7 +337,7 @@ export class CustomersService {
   }
 
   async summaryOf(id: string, actor: Principal) {
-    await this.findOne(id, actor);
+    const customer = await this.findOne(id, actor);
 
     // CD-68 — the same "about this customer" as the requests tab, so the
     // card and the rows under it cannot disagree.
@@ -336,7 +345,7 @@ export class CustomersService {
       ? {
           AND: [
             visibleRequestsWhere(accessSubject(actor)),
-            await this.customerRequestsWhere(id),
+            await this.customerRequestsWhere(customer),
           ],
         }
       : {};
