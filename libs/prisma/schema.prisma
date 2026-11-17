@@ -580,13 +580,19 @@ model UserCompany {
   userId    String
   companyId String
   isPrimary Boolean  @default(false)
+  /// The person's unit in THIS company's chart (17 Nov 2026, user decision): one
+  /// person sits in OSD's RND and D CALL's RND at once. Readers use this column;
+  /// legacy writers of `users.orgUnitId` reach it through the migration's triggers.
+  orgUnitId String?
   createdAt DateTime @default(now())
 
-  user    User    @relation(fields: [userId], references: [id])
-  company Company @relation(fields: [companyId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  company Company  @relation(fields: [companyId], references: [id])
+  orgUnit OrgUnit? @relation("CompanyMembers", fields: [orgUnitId], references: [id], onDelete: SetNull)
 
   @@unique([userId, companyId])
   @@index([companyId])
+  @@index([companyId, orgUnitId])
   @@map("user_companies")
 }
 
@@ -615,6 +621,7 @@ model OrgUnit {
 
   company       Company               @relation(fields: [companyId], references: [id])
   members       User[]                @relation("OrgUnitMembers")
+  companyMembers UserCompany[]        @relation("CompanyMembers")
   ancestors     OrgClosure[]          @relation("ClosureDescendant")
   descendants   OrgClosure[]          @relation("ClosureAncestor")
   receivedTypes RequestType[]         @relation("ReceiverUnit")

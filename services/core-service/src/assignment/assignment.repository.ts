@@ -88,9 +88,8 @@ export class AssignmentRefsRepository extends BaseRepository<
   members(companyId: string, orgUnitId: string) {
     return this.findMany({
       where: {
-        orgUnitId,
         status: 'ACTIVE',
-        companies: { some: { companyId } },
+        companies: { some: { companyId, orgUnitId } },
       },
       select: { id: true, email: true, displayName: true },
       orderBy: { id: 'asc' },

@@ -112,7 +112,9 @@ describe('the directory filter', () => {
       orgUnitIds: [],
     });
 
-    expect(clauses(where)).toContainEqual({ orgUnitId: { in: [] } });
+    expect(clauses(where)).toContainEqual({
+      companies: { some: { companyId: 'company-osd', orgUnitId: { in: [] } } },
+    });
   });
 
   it('narrows to one group when asked for one', () => {
@@ -124,7 +126,9 @@ describe('the directory filter', () => {
       org_unit_id: 'ou-sales',
     });
 
-    expect(clauses(where)).toContainEqual({ orgUnitId: 'ou-sales' });
+    expect(clauses(where)).toContainEqual({
+      companies: { some: { companyId: 'company-osd', orgUnitId: 'ou-sales' } },
+    });
   });
 });
 
@@ -139,8 +143,11 @@ describe('the rows it returns', () => {
         username: 'chanakulk',
         email: 'chanakulk@osd.co.th',
         position: 'Solution Architect',
-        orgUnitId: 'ou-bsc',
-        orgUnit: { name: 'Business Solution Consulting' },
+        // one person, a unit in each company: the caller's company's row wins
+        companies: [
+          { companyId: 'company-dcall', orgUnitId: 'ou-dc-rnd', orgUnit: { name: 'RND (D CALL)' } },
+          { companyId: 'company-osd', orgUnitId: 'ou-bsc', orgUnit: { name: 'Business Solution Consulting' } },
+        ],
       },
     ]);
     repo.countWhere.mockResolvedValue(1);
@@ -172,8 +179,7 @@ describe('the rows it returns', () => {
         username: 'newbie',
         email: null,
         position: null,
-        orgUnitId: null,
-        orgUnit: null,
+        companies: [{ companyId: 'company-osd', orgUnitId: null, orgUnit: null }],
       },
     ]);
     repo.countWhere.mockResolvedValue(1);

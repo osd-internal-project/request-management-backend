@@ -972,6 +972,8 @@ export class RequestsService {
         refId: dto.ref_id ?? null,
         severity: dto.severity ?? null,
         receiverUserId: type.receiverUserId,
+        // the type's receiving team, as the screen path copies it — what lets the submit pick a team member
+        receiverOrgUnitId: type.receiverOrgUnitId,
         status: 'draft',
         source: 'SYSTEM',
         createdBy: null,
@@ -1088,6 +1090,7 @@ export class RequestsService {
         refId: input.ref?.id ?? null,
         severity: input.severity ?? null,
         receiverUserId: type.receiverUserId,
+        receiverOrgUnitId: type.receiverOrgUnitId,
         status: 'draft',
         source: 'SYSTEM',
         createdBy: null,

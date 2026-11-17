@@ -45,6 +45,19 @@ export class UserCompanyRepository extends BaseRepository<
     return rows.map((row) => row.companyId);
   }
 
+  /** The person's unit in this company's chart, or null. */
+  async orgUnitOf(
+    userId: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<string | null> {
+    const row = await this.findFirst(
+      { where: { userId, companyId }, select: { orgUnitId: true } },
+      option,
+    );
+    return row?.orgUnitId ?? null;
+  }
+
   /** Replaces a user's memberships wholesale; the caller supplies the tx. */
   async replaceForUser(
     userId: string,

@@ -30,8 +30,10 @@ const DIRECTORY_SELECT = {
   extension: true,
   startWork: true,
   phone: true,
-  orgUnitId: true,
-  orgUnit: { select: { name: true } },
+  // the unit is per company; the caller picks its own company's row
+  companies: {
+    select: { companyId: true, orgUnitId: true, orgUnit: { select: { name: true } } },
+  },
 } as const;
 
 type DirectoryRow = Prisma.UserGetPayload<{ select: typeof DIRECTORY_SELECT }>;

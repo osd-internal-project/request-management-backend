@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UsersRepository } from '../users/users.repository';
 import { RolesService } from '../roles/roles.service';
+import { UserCompanyRepository } from './user-company.repository';
 
 /** Everything `resolveChain` needs, resolved on the identity side. */
 export interface ApprovalContext {
@@ -42,6 +43,7 @@ export class ApprovalContextService {
   constructor(
     private readonly users: UsersRepository,
     private readonly roles: RolesService,
+    private readonly memberships: UserCompanyRepository,
   ) {}
 
   async resolve(userId: string, companyId: string): Promise<ApprovalContext> {
@@ -62,7 +64,7 @@ export class ApprovalContextService {
       // counts groups upward from here, so it travels with the rest of the
       // context rather than being fetched again on the other side of the
       // service boundary.
-      orgUnitId: user?.orgUnitId ?? null,
+      orgUnitId: await this.memberships.orgUnitOf(userId, companyId),
       supervisorUserId,
       supervisorChain,
       roleHolders,

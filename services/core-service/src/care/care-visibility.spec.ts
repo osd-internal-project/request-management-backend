@@ -43,7 +43,7 @@ describe('Q9 Care — conversations are seen like owned rows', () => {
       companyId: 'osd',
       OR: [
         { agentUserId: 'me' },
-        { agent: { orgUnitId: { in: ['care-team'] } } },
+        { agent: { companies: { some: { orgUnitId: { in: ['care-team'] } } } } },
         { agentUserId: null },
       ],
     });

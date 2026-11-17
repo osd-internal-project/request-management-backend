@@ -819,6 +819,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
         companies: {
           select: {
             isPrimary: true,
+            orgUnitId: true,
             company: { select: { id: true, name: true, docPrefix: true } },
           },
         },
@@ -833,6 +834,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
       supervisorUserId: string | null;
       companies: {
         isPrimary: boolean;
+        orgUnitId: string | null;
         company: { id: string; name: string; docPrefix: string };
       }[];
     } | null;
@@ -850,7 +852,8 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
         isPrimary: row.isPrimary,
       })),
       activeCompanyId: companyId,
-      orgUnitId: user.orgUnitId,
+      // their unit in this company's chart
+      orgUnitId: user.companies.find((row) => row.company.id === companyId)?.orgUnitId ?? null,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds: [],
       levelUnitIds: [],

@@ -287,7 +287,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     // Tier k reaches the head k levels above the holder: 100% their team head, 150% the next.
     const heads: string[] = [];
     for (let tier = clock.escalationLevel + 1; tier <= reached; tier += 1) {
-      if (holder) heads.push(...(await this.headAbove(holder, tier)));
+      if (holder) heads.push(...(await this.headAbove(holder, tier, request.companyId)));
     }
 
     const recipients = [
@@ -409,7 +409,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     const heads: string[] = [];
     if (reached >= 2) {
       for (const candidate of candidates)
-        heads.push(...(await this.headAbove(candidate, 1)));
+        heads.push(...(await this.headAbove(candidate, 1, step.case.companyId)));
     }
 
     await this.prisma.approvalStep.update({
@@ -443,15 +443,15 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** The head `up` levels above where this person sits; empty when the chart runs out. */
-  private async headAbove(userId: string, up: number): Promise<string[]> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+  private async headAbove(userId: string, up: number, companyId: string): Promise<string[]> {
+    const membership = await this.prisma.userCompany.findFirst({
+      where: { userId, companyId },
       select: { orgUnitId: true },
     });
-    if (!user?.orgUnitId) return [];
+    if (!membership?.orgUnitId) return [];
     return this.access.approverCandidatesOf(
       { type: 'supervisor', up },
-      { requesterId: userId, orgUnitId: user.orgUnitId },
+      { requesterId: userId, orgUnitId: membership.orgUnitId },
     );
   }
 

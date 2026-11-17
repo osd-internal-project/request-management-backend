@@ -331,9 +331,8 @@ export class RequestRepository extends BaseRepository<
   async teamMemberIds(companyId: string, orgUnitId: string): Promise<string[]> {
     const rows = await this.prisma.user.findMany({
       where: {
-        orgUnitId,
         status: 'ACTIVE',
-        companies: { some: { companyId } },
+        companies: { some: { companyId, orgUnitId } },
       },
       select: { id: true },
     });

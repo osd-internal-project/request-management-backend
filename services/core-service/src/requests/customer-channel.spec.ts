@@ -21,7 +21,9 @@ const osdKey = {
   companyId: 'osd',
 };
 
-function harness(options: { found?: Record<string, unknown> | null } = {}) {
+function harness(
+  options: { found?: Record<string, unknown> | null; type?: Record<string, unknown> } = {},
+) {
   // system accounts keyed by keycloakId, as the unique index would hold them
   const accounts = new Map<string, { id: string; displayName: string }>();
   const tx = {
@@ -69,6 +71,7 @@ function harness(options: { found?: Record<string, unknown> | null } = {}) {
         code: 'IT',
         receiverUserId: 'recv-1',
         formSchema: {},
+        ...options.type,
       }),
     ),
   };
@@ -215,6 +218,17 @@ describe('CD-66 requests from customer channels', () => {
         create: { userId: 'sys-1', companyId: 'osd' },
       }),
     );
+  });
+
+  it('a type with only a receiving team hands that team to the request, so the submit can pick a member (D CALL, 17 Nov 2026)', async () => {
+    const h = harness({ type: { receiverUserId: null, receiverOrgUnitId: 'rnd-dcall' } });
+    await h.service.createFromIntegration(
+      { type_code: 'IT', company_id: 'osd' },
+      robot,
+      'Bearer t',
+      osdKey,
+    );
+    expect(h.created[0]).toMatchObject({ receiverUserId: null, receiverOrgUnitId: 'rnd-dcall' });
   });
 
   it('REQ-10: the same key reuses its one system account and follows a renamed key', async () => {

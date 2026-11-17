@@ -148,7 +148,7 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
     const client = option?.prisma ?? this.prisma;
 
     return client.user.findMany({
-      where: { orgUnitId, status: 'ACTIVE' },
+      where: { status: 'ACTIVE', companies: { some: { orgUnitId } } },
       include: { supervisor: { select: { id: true, displayName: true } } },
       orderBy: { displayName: 'asc' },
     });
@@ -166,7 +166,10 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
     if (!orgUnitIds.length) return Promise.resolve([]);
 
     return client.user.findMany({
-      where: { orgUnitId: { in: [...orgUnitIds] }, status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        companies: { some: { orgUnitId: { in: [...orgUnitIds] } } },
+      },
       include: { supervisor: { select: { id: true, displayName: true } } },
       orderBy: { displayName: 'asc' },
     });
@@ -229,7 +232,10 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
       select: {
         username: true,
         position: true,
-        orgUnit: { select: { name: true } },
+        companies: {
+          where: { companyId },
+          select: { orgUnit: { select: { name: true } } },
+        },
         /*
           Which groups this person heads. Read through the relation rather than
           querying `org_units` separately so the whole page stays one round
@@ -263,7 +269,7 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
         row.username,
         {
           position: row.position,
-          orgUnitName: row.orgUnit?.name ?? null,
+          orgUnitName: row.companies[0]?.orgUnit?.name ?? null,
           managedUnitNames: row.managedUnits.map((unit) => unit.name),
           roles: row.roles.map((held) => held.role.name),
         },
@@ -274,7 +280,11 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
   findUnassigned(option?: TxOption): Promise<User[]> {
     return this.findMany(
       {
-        where: { orgUnitId: null, status: 'ACTIVE' },
+        // nobody has placed them in any company's chart yet
+        where: {
+          status: 'ACTIVE',
+          companies: { none: { orgUnitId: { not: null } } },
+        },
         orderBy: { firstLoginAt: 'desc' },
       },
       option,
@@ -356,7 +366,10 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
         extension: true,
         startWork: true,
         phone: true,
-        orgUnit: { select: { name: true } },
+        companies: {
+          where: { companyId },
+          select: { orgUnit: { select: { name: true } } },
+        },
         managedUnits: {
           where: { active: true, companyId },
           select: { name: true },
@@ -387,7 +400,7 @@ export type AdminDirectoryRow = Prisma.UserGetPayload<{
     extension: true;
     startWork: true;
     phone: true;
-    orgUnit: { select: { name: true } };
+    companies: { select: { orgUnit: { select: { name: true } } } };
     managedUnits: { select: { name: true } };
     roles: { select: { role: { select: { name: true } } } };
   };

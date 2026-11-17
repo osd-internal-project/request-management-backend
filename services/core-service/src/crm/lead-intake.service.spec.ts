@@ -108,7 +108,7 @@ function harness(
     findFirst: jest.fn(() =>
       Promise.resolve(
         options.member === undefined
-          ? { id: 'sales-2', orgUnitId: 'unit-sales-north' }
+          ? { id: 'sales-2', companies: [{ orgUnitId: 'unit-sales-north' }] } // unit in this company
           : options.member,
       ),
     ),
@@ -321,7 +321,7 @@ describe('กองกลาง — ใครเห็น และรับไ�
     const { service, leads, members, audits } = harness();
     members.findFirst.mockResolvedValueOnce({
       id: 'sales-1',
-      orgUnitId: 'unit-sales',
+      companies: [{ orgUnitId: 'unit-sales' }],
     });
 
     await service.assign('lead-1', {}, sales());
