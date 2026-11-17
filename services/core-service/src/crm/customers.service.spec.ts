@@ -569,6 +569,12 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
         {
           OR: [
             { refType: 'customer', refId: 'cust-1' },
+            // a service work order names the customer by its code
+            {
+              refType: 'customer',
+              refId: 'CUS-OSD-000001',
+              companyId: OSD,
+            },
             // CD-67 — a case raised against one of its contracts
             {
               refType: 'contract',
