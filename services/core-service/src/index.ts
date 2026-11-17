@@ -74,6 +74,8 @@ export {
   SendRequirementRequestDto,
 } from './mail/dto/sales-mail.dto';
 export { CustomersService } from './crm/customers.service';
+export { ProductCatalogService } from './crm/product-catalog.service';
+export { SearchProductsQueryDto } from './products/products.controller';
 export { CustomerImportService } from './crm/customer-import.service';
 export { CrmAdminService } from './crm/crm-admin.service';
 export { LeadsService } from './crm/leads.service';
