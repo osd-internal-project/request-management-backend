@@ -5,6 +5,7 @@ import {
   mandatoryItems,
   productNameOfLead,
   requirementsOfLead,
+  similarBundleNames,
   type BundleItemState,
 } from './product-bundle-rules';
 
@@ -212,5 +213,23 @@ describe('product bundle rules', () => {
       quantity: null,
       answers: {},
     });
+  });
+
+  it('similarBundleNames offers the bundles a missed name sits inside', () => {
+    const names = [
+      'ระบบ D-Contact 10 license',
+      'ระบบ D-Contact 20 license',
+      'IP-PHONE',
+      'D-DEBT',
+    ];
+    expect(similarBundleNames(' d-contact ', names)).toEqual([
+      'ระบบ D-Contact 10 license',
+      'ระบบ D-Contact 20 license',
+    ]);
+    // the other way round, and never more than the limit
+    expect(similarBundleNames('IP-PHONE รุ่น 2', names)).toEqual(['IP-PHONE']);
+    expect(similarBundleNames('d-contact', names, 1)).toHaveLength(1);
+    expect(similarBundleNames('ATOM', names)).toEqual([]);
+    expect(similarBundleNames('  ', names)).toEqual([]);
   });
 });
