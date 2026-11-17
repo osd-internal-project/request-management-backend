@@ -46,7 +46,8 @@ export class RequestIntakeController {
     summary: 'ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10)',
     description:
       'ไม่ต้องส่ง `X-Acting-User` — คำขอนี้มี `source: "system"` และ timeline ' +
-      'บันทึกบัญชีบริการ ถ้าต้องการให้ timeline เป็นชื่อคน ใช้ ' +
+      'บันทึกบัญชีบริการ · ไม่ส่ง `requester_user_id` = ผู้ยื่นเป็น ' +
+      '"system (ชื่อ API key)" · ถ้าต้องการให้ timeline เป็นชื่อคน ใช้ ' +
       '`POST /api/v1/request/requests` พร้อม `X-Acting-User` แทน',
   })
   create(
@@ -59,7 +60,7 @@ export class RequestIntakeController {
       dto,
       principal,
       authorization,
-      key?.companyId ?? null,
+      key ?? null,
     );
   }
 }
