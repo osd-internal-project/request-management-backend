@@ -14,6 +14,6 @@ import { UserLineAccountRepository } from './user-line-account.repository';
     LineSettingsService,
     LineLinkService,
   ],
-  exports: [LineLinkService, UserLineAccountRepository],
+  exports: [LineLinkService, LineSettingsService, UserLineAccountRepository],
 })
 export class LineModule {}
