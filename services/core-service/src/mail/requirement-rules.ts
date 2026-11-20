@@ -80,10 +80,43 @@ export function productIn(
   );
 }
 
+const THAI_MONTH =
+  '(?:มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม|ม\\.ค\\.|ก\\.พ\\.|มี\\.ค\\.|เม\\.ย\\.|พ\\.ค\\.|มิ\\.ย\\.|ก\\.ค\\.|ส\\.ค\\.|ก\\.ย\\.|ต\\.ค\\.|พ\\.ย\\.|ธ\\.ค\\.)';
+/** A date or a point in time, however the customer wrote it. */
+const WHEN_PATTERNS = [
+  /\d{1,2}\s*[/.-]\s*\d{1,2}\s*[/.-]\s*\d{2,4}/,
+  /\d{4}-\d{1,2}-\d{1,2}/,
+  new RegExp(THAI_MONTH),
+  /\b(?:jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i,
+  /\bmay\s+\d|\d(?:st|nd|rd|th)?\s+may\b/i,
+  /\bQ[1-4]\b/i,
+  /(?:สัปดาห์|อาทิตย์|เดือน|ปี)(?:นี้|หน้า|ถัดไป)/,
+  /(?:อีก|ใน|ภายใน)\s*\d+\s*(?:วัน|สัปดาห์|อาทิตย์|เดือน|ปี)/,
+  /พรุ่งนี้|ทันที|เร็วที่สุด|โดยด่วน|ด่วนที่สุด|asap/i,
+];
+const ASKS_WHEN =
+  /เมื่อใด|เมื่อไหร่|เมื่อไร|วันที่|กำหนด|when\b|date|deadline|timeline/i;
+
+/**
+ * True when the question asks for a time — "ต้องการใช้งานภายในเมื่อใด". Such a
+ * question is answered by any date in the reply, whatever words stand around
+ * it: customers write "ต้องการใช้วันที่ 3/1/2027", which carries none of the
+ * hints set on the product (20 พ.ย. 2569).
+ */
+export function asksWhen(question: BundleRequirement): boolean {
+  return ASKS_WHEN.test(question.question) || ASKS_WHEN.test(question.key);
+}
+
+/** True when the text names a date or a point in time. */
+export function saysWhen(text: string): boolean {
+  return WHEN_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 /**
  * The keyword reading — used when the LLM is a mock or answers nonsense.
  * A question counts as answered when one of its hints appears (the line that
- * carries it is kept as the answer). When the customer is answering our own
+ * carries it is kept as the answer); a question that asks for a time is also
+ * answered by a line that carries a date. When the customer is answering our own
  * requirement email and a question has no hints to go by, their whole message
  * is taken as its answer: a person reads it on the quotation, and the
  * customer is not asked the same thing twice.
@@ -101,10 +134,11 @@ export function extractByRules(input: {
     .filter(Boolean);
   const answers: Record<string, string> = {};
   for (const question of input.questions) {
-    const line = lines.find((candidate) => {
-      const lower = candidate.toLowerCase();
-      return question.hints.some((hint) => lower.includes(hint));
-    });
+    const line =
+      lines.find((candidate) => {
+        const lower = candidate.toLowerCase();
+        return question.hints.some((hint) => lower.includes(hint));
+      }) ?? (asksWhen(question) ? lines.find(saysWhen) : undefined);
     if (line) answers[question.key] = line.slice(0, MAX_ANSWER_CHARS);
     else if (input.answeringAsk && !question.hints.length && text) {
       answers[question.key] = text.slice(0, MAX_ANSWER_CHARS);
