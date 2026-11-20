@@ -165,6 +165,10 @@ export const ErrorCatalog = {
   CRM_TARGET_APPROVAL_UNAVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
   /** CD-82: this target already has an adjustment waiting for approval. */
   CRM_TARGET_ADJUSTMENT_PENDING: HttpStatus.CONFLICT,
+  /** The company has no LINE Login channel set, so nobody there can link LINE yet. */
+  LINE_NOT_CONFIGURED: HttpStatus.CONFLICT,
+  /** The person exists in the company but has not linked their LINE there. */
+  LINE_NOT_LINKED: HttpStatus.NOT_FOUND,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;

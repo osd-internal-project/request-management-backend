@@ -444,6 +444,7 @@ model Company {
   quotationCodeCounter    QuotationCodeCounter?
   salesTargets            SalesTarget[]
   campaigns               Campaign[]
+  lineAccounts            UserLineAccount[]
 
   @@map("companies")
 }
@@ -566,6 +567,7 @@ model User {
   scopesOn                OrgUnitScope[]           @relation("ScopeTargetUser")
   ownedCustomers          Customer[]               @relation("CustomerAccountOwner")
   careConversations       CareConversation[]       @relation("CareAgent")
+  lineAccounts            UserLineAccount[]
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
@@ -9747,4 +9749,44 @@ model MailSetting {
   updatedAt DateTime @updatedAt
 
   @@map("mail_settings")
+}
+
+/// LINE Login channel of one company, used to link each user's LINE to that company's OA.
+/// The channel must sit in the same LINE Provider as the OA, or the userId it returns
+/// will not match the one the OA pushes to.
+model LineSetting {
+  id        String @id @default(uuid())
+  companyId String @unique
+
+  loginChannelId        String  @default("")
+  loginChannelSecretEnc String?
+  /// e.g. `@osd`, shown as the add-friend link on the profile card.
+  oaBasicId             String  @default("")
+
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("line_settings")
+}
+
+/// One user's LINE in one company. Per company because each OA is its own
+/// Provider, so the same person has a different `lineUserId` in each.
+model UserLineAccount {
+  id          String   @id @default(uuid())
+  userId      String
+  companyId   String
+  lineUserId  String
+  displayName String
+  pictureUrl  String?
+  /// Friend of the OA when linked; push only reaches friends.
+  isFriend    Boolean  @default(false)
+  linkedAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@unique([companyId, lineUserId])
+  @@map("user_line_accounts")
 }
