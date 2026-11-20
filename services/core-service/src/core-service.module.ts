@@ -37,6 +37,7 @@ import { WebhookHttpModule } from './webhook/webhook-http.module';
 import { WorkflowTriggerHttpModule } from './workflow-trigger/workflow-trigger-http.module';
 import { ProcessLogHttpModule } from './process-log/process-log-http.module';
 import { MailHttpModule } from './mail/mail-http.module';
+import { LineHttpModule } from './line/line-http.module';
 import { LeadFilesHttpModule } from './crm/lead-files-http.module';
 import { AssignmentHttpModule } from './assignment/assignment-http.module';
 import { CareHttpModule } from './care/care-http.module';
@@ -70,6 +71,7 @@ import configs from './configs';
     WorkflowTriggerHttpModule,
     ProcessLogHttpModule,
     MailHttpModule,
+    LineHttpModule,
     LeadFilesHttpModule,
     // ตารางทีม — ใครได้งานของแต่ละบทบาท (เส้นทาง Lead ถึงบริการ Phase 0)
     AssignmentHttpModule,
