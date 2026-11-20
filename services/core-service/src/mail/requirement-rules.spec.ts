@@ -1,5 +1,6 @@
 import {
   MAX_REQUIREMENT_ASKS,
+  asksWhen,
   decide,
   extractByRules,
   mergeRequirements,
@@ -7,6 +8,7 @@ import {
   productIn,
   quantityIn,
   requirementEmailBody,
+  saysWhen,
 } from './requirement-rules';
 
 const site = { key: 'site', question: 'สถานที่ติดตั้ง', hints: ['ติดตั้งที่'] };
@@ -52,6 +54,54 @@ describe('requirement rules (13 พ.ย. 2569)', () => {
         answeringAsk: true,
       });
       expect(found.answers).toEqual({ term: '36 เดือนครับ' });
+    });
+  });
+
+  describe('a question that asks for a time (20 พ.ย. 2569)', () => {
+    const when = {
+      key: 'timeline',
+      question: 'ต้องการใช้งานภายในเมื่อใด',
+      hints: ['ภายใน', 'เริ่มใช้', 'กำหนดใช้', 'ไตรมาส', 'ต้นปี', 'สิ้นปี'],
+    };
+    const siteFull = {
+      key: 'site',
+      question: 'สถานที่ติดตั้ง (จังหวัด/สาขา)',
+      hints: ['ติดตั้งที่', 'สถานที่', 'สาขา', 'จังหวัด', 'ที่อยู่'],
+    };
+    const read = (text: string) =>
+      extractByRules({
+        text,
+        productNames: names,
+        questions: [siteFull, when, term],
+        answeringAsk: false,
+      }).answers;
+
+    it('a date answers it even when no hint is there', () => {
+      const text = 'ติดตั้งที่ นครสวรรค์ และต้องการใช้วันที่ 3/1/2027';
+      expect(read(text)).toEqual({ site: text, timeline: text });
+    });
+
+    it('reads the ways customers write a date', () => {
+      for (const text of [
+        'ใช้ 15 มกราคม 2570',
+        'ขอเป็น 1 ก.พ. ครับ',
+        'go live 2027-01-03',
+        'by March 2027',
+        'เดือนหน้าครับ',
+        'อีก 2 เดือน',
+        'เร็วที่สุดครับ',
+      ]) {
+        expect(read(text)).toEqual({ timeline: text });
+      }
+    });
+
+    it('a line with no date leaves it unanswered, and other questions do not take dates', () => {
+      expect(read('ติดตั้งที่ นครสวรรค์')).toEqual({
+        site: 'ติดตั้งที่ นครสวรรค์',
+      });
+      expect(read('สนใจครับ โทร 02-123-4567')).toEqual({});
+      expect(asksWhen(term)).toBe(false);
+      expect(saysWhen('may I ask the price')).toBe(false);
     });
   });
 
