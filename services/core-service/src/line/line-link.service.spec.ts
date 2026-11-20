@@ -64,17 +64,18 @@ function setup(options: { configured?: boolean } = {}) {
         return Promise.resolve(null);
       },
     ),
-    member: jest.fn((_companyId: string, email: string) =>
-      Promise.resolve(
-        email === 'nont@osd.co.th'
-          ? {
-              id: 'user-1',
-              email,
-              displayName: 'นนท์',
-              lineAccounts: rows.filter((row) => row.userId === 'user-1'),
-            }
-          : null,
-      ),
+    member: jest.fn(
+      (_companyId: string, by: { email: string } | { userId: string }) =>
+        Promise.resolve(
+          ('email' in by ? by.email === 'nont@osd.co.th' : by.userId === 'user-1')
+            ? {
+                id: 'user-1',
+                email: 'nont@osd.co.th',
+                displayName: 'นนท์',
+                lineAccounts: rows.filter((row) => row.userId === 'user-1'),
+              }
+            : null,
+        ),
     ),
     delete: jest.fn(({ where }: { where: { id: string } }) => {
       rows.splice(
@@ -223,7 +224,7 @@ describe('LINE link', () => {
       friendship_status_changed: 'true',
     });
     await expect(
-      service.recipientFor('company-1', 'nont@osd.co.th'),
+      service.recipientFor('company-1', { email: 'nont@osd.co.th' }),
     ).resolves.toEqual({
       user_id: 'user-1',
       email: 'nont@osd.co.th',
@@ -234,13 +235,38 @@ describe('LINE link', () => {
     });
   });
 
+  it('recipientFor finds the member by the user id an approval step names', async () => {
+    const { service, accounts } = setup();
+    await service.complete({
+      code: 'c',
+      state: state(),
+      friendship_status_changed: 'true',
+    });
+    await expect(
+      service.recipientFor('company-1', { userId: 'user-1' }),
+    ).resolves.toMatchObject({
+      user_id: 'user-1',
+      email: 'nont@osd.co.th',
+      line_user_id: 'U-line-nont',
+    });
+    expect(accounts.member).toHaveBeenLastCalledWith('company-1', {
+      userId: 'user-1',
+    });
+    await expect(
+      service.recipientFor('company-1', { userId: 'user-elsewhere' }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      details: [{ field: 'user_id', reason: 'not_found' }],
+    });
+  });
+
   it('recipientFor tells not-linked from not-a-member', async () => {
     const { service } = setup();
     await expect(
-      service.recipientFor('company-1', 'nont@osd.co.th'),
+      service.recipientFor('company-1', { email: 'nont@osd.co.th' }),
     ).rejects.toMatchObject({ code: 'LINE_NOT_LINKED' });
     await expect(
-      service.recipientFor('company-1', 'stranger@x.com'),
+      service.recipientFor('company-1', { email: 'stranger@x.com' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

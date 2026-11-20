@@ -5,6 +5,9 @@ import {
   TQueryClient,
 } from '@request-management/share';
 
+/** Who `line-recipients` asks about: the email a caller knows, or the id an approval step names. */
+export type LineRecipientKey = { email: string } | { userId: string };
+
 /** A user's LINE per company; unlinking deletes the row (the audit log keeps the event). */
 @Injectable()
 export class UserLineAccountRepository extends BaseRepository<
@@ -18,10 +21,14 @@ export class UserLineAccountRepository extends BaseRepository<
     return client.userLineAccount;
   }
 
-  /** An active member of the company by exact email, with their LINE there if linked. */
-  member(companyId: string, email: string) {
+  /** An active member of the company by exact email or id, with their LINE there if linked. */
+  member(companyId: string, by: LineRecipientKey) {
     return this.prisma.user.findFirst({
-      where: { email, status: 'ACTIVE', companies: { some: { companyId } } },
+      where: {
+        ...('email' in by ? { email: by.email } : { id: by.userId }),
+        status: 'ACTIVE',
+        companies: { some: { companyId } },
+      },
       select: {
         id: true,
         email: true,

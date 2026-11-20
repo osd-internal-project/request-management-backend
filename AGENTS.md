@@ -497,7 +497,8 @@ that something happened. The answer is data — matching rule, leave, open work,
 queue — never a process decision; for a Lead it also writes the owner through
 `LeadsService.assign`, and a Lead that already has one keeps it. A notice links
 to a document by type and id, never to a URL the caller supplies. `GET
-process/line-recipients?email=` (20 Nov 2026) answers which LINE a member linked
+process/line-recipients?email=|user_id=` (20 Nov 2026; `user_id` = the
+`approverUserId` an approval step names) answers which LINE a member linked
 in the key's company, so a workflow pushes a card to that person and checks
 `expectedUserId` against them — the LINE id and name only, 404 for anyone else. Closing a
 request is **not** here: the workflow completes it through `requests/:ref/

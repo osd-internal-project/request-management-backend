@@ -196,6 +196,35 @@ const SCOPE_DB = process.env.EXTERNAL_SMOKE_DB_URL;
     expect(response.status).toBe(403);
   });
 
+  const byQuery = (query: Record<string, string>) =>
+    request(app.getHttpServer())
+      .get(`/api/v1/process/line-recipients`)
+      .query(query)
+      .set('Authorization', 'Bearer A:integration.process.dispatch');
+
+  it('answers the same LINE by the user id an approval step names', async () => {
+    const response = await byQuery({ user_id: ids.linked });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      user_id: ids.linked,
+      email: email('linked'),
+      line_user_id: `U-a-${run}`,
+    });
+  });
+
+  it('hides another company’s user id behind 404 NOT_FOUND', async () => {
+    const response = await byQuery({ user_id: ids.other });
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('refuses both or neither of email and user_id', async () => {
+    const both = await byQuery({ email: email('linked'), user_id: ids.linked });
+    expect(both.status).toBe(400);
+    const neither = await byQuery({});
+    expect(neither.status).toBe(400);
+  });
+
   it('refuses a malformed email before reading anything', async () => {
     const response = await request(app.getHttpServer())
       .get(`/api/v1/process/line-recipients`)
