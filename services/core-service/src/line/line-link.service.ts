@@ -11,7 +11,10 @@ import {
 import { LineLoginClient, LineLoginError } from './line-login.client';
 import { authorizeUrl, readState, signState } from './line-rules';
 import { LineSettingsService } from './line-settings.service';
-import { UserLineAccountRepository } from './user-line-account.repository';
+import {
+  type LineRecipientKey,
+  UserLineAccountRepository,
+} from './user-line-account.repository';
 
 export type LinkFailure =
   | 'STATE_INVALID'
@@ -179,17 +182,18 @@ export class LineLinkService {
    * Who a workflow pushes a LINE card to: the company's member by exact email
    * and their LINE in that company. 404 hides people of other companies.
    */
-  async recipientFor(companyId: string, email: string) {
-    const member = await this.accounts.member(companyId, email);
+  async recipientFor(companyId: string, by: LineRecipientKey) {
+    const field = 'email' in by ? 'email' : 'user_id';
+    const member = await this.accounts.member(companyId, by);
     if (!member) {
-      throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้อีเมลนี้ในบริษัท', [
-        { field: 'email', reason: 'not_found' },
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้นี้ในบริษัท', [
+        { field, reason: 'not_found' },
       ]);
     }
     const account = member.lineAccounts[0];
     if (!account) {
       throw new AppError('LINE_NOT_LINKED', 'ผู้ใช้นี้ยังไม่ได้ผูก LINE กับบริษัทนี้', [
-        { field: 'email', reason: 'line_not_linked' },
+        { field, reason: 'line_not_linked' },
       ]);
     }
     return {
