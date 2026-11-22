@@ -26,6 +26,7 @@ import { CustomerTimelineService } from './customer-timeline.service';
 import type { CreateCustomerDto } from './dto/customer.dto';
 import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { ProductCatalogService } from './product-catalog.service';
+import { CrmEmailRepository } from '../mail/crm-email.repository';
 import { computeQuotationTotals } from './quotation-math';
 import {
   CancelSaleOrderDto,
@@ -64,6 +65,7 @@ export class SaleOrdersService {
     private readonly erpSync: SaleOrderErpSyncService,
     private readonly catalog: ProductCatalogService,
     private readonly leadClosing: LeadClosingService,
+    private readonly emails: CrmEmailRepository,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -133,17 +135,29 @@ export class SaleOrdersService {
    */
   async open(opportunityId: string, dto: OpenSaleOrderDto, actor: Principal) {
     const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
+    // 22 พ.ย. 2569: ใบเสนอราคาที่ส่งทางอีเมลต้องได้อีเมลยืนยันจากลูกค้าก่อน
+    const confirmedQuotationId = await this.requireEmailConfirmation(
+      opportunity,
+      dto,
+      actor,
+    );
+    const quotationId = dto.quotation_id ?? confirmedQuotationId;
     // Checked before the customer is resolved: a wrong quotation must not leave
     // a freshly created customer behind it.
-    const quotation = dto.quotation_id
+    const quotation = quotationId
       ? await this.requireAcceptedQuotation(
-          dto.quotation_id,
+          quotationId,
           opportunity.id,
           actor,
+          // the customer's confirming email is the acceptance of that one
+          quotationId === confirmedQuotationId,
         )
       : null;
     // Same reason: manual lines are checked before anything is written.
-    const manual = await this.manualLines(dto, actor);
+    const manual = await this.manualLines(
+      { ...dto, quotation_id: quotationId ?? undefined },
+      actor,
+    );
     // PO 24 ก.ย. 2569: เปิดตามใบเสนอราคา = มูลค่าเท่ายอดสุทธิของใบนั้นเสมอ —
     // ราคาเปลี่ยนต้องออกใบเสนอราคาเวอร์ชันใหม่ (ผ่านตรวจ margin + ลูกค้ายอมรับ).
     if (quotation) assertAmountMatches(dto.amount, quotation.netTotal);
@@ -183,6 +197,20 @@ export class SaleOrdersService {
             quotationLineId: line.id,
           }))
         : (manual?.lines ?? []);
+
+      if (quotation && quotation.status === 'sent') {
+        await this.quotations.update(
+          {
+            where: { id: quotation.id },
+            data: {
+              status: 'accepted',
+              respondedAt: new Date(),
+              responseNote: 'ลูกค้ายืนยันทางอีเมล',
+            },
+          },
+          { prisma },
+        );
+      }
 
       const row = (await this.saleOrders.create(
         {
@@ -476,6 +504,7 @@ export class SaleOrdersService {
     id: string,
     opportunityId: string,
     actor: Principal,
+    confirmedByEmail = false,
   ) {
     const found = (await this.quotations.findFirst({
       where: {
@@ -522,7 +551,10 @@ export class SaleOrdersService {
         [{ field: 'quotation_id', reason: id }],
       );
     }
-    if (found.status !== 'accepted') {
+    if (
+      found.status !== 'accepted' &&
+      !(confirmedByEmail && found.status === 'sent')
+    ) {
       throw new AppError(
         'CRM_QUOTATION_STATE_INVALID',
         'เปิดใบสั่งขายได้จากใบเสนอราคาที่ลูกค้ายอมรับแล้วเท่านั้น',
@@ -530,6 +562,83 @@ export class SaleOrdersService {
       );
     }
     return found;
+  }
+
+  /**
+   * 22 พ.ย. 2569: ดีลที่ส่งใบเสนอราคาให้ลูกค้าทางอีเมลแล้ว เปิดใบสั่งขายได้เมื่อ
+   * ลูกค้าตอบอีเมลยืนยันใบนั้นหรือส่ง PO มาหลังจากนั้นเท่านั้น และเปิดตามใบนั้น.
+   * ดีลที่ไม่เคยส่งใบเสนอราคาทางอีเมล (ลูกค้าเดิม, API ภายนอก) ไม่ถูกบังคับ.
+   * ใบที่ส่งแล้วแต่ไม่ยืนอยู่ (ปฏิเสธ/ยกเลิก/ถูกแทนด้วยเวอร์ชันใหม่) ไม่นับ.
+   *
+   * @returns ใบเสนอราคาที่ลูกค้ายืนยันทางอีเมล — `null` เมื่อดีลไม่เข้ากติกานี้
+   */
+  private async requireEmailConfirmation(
+    opportunity: OpenOpportunityForSale,
+    dto: OpenSaleOrderDto,
+    actor: Principal,
+  ): Promise<string | null> {
+    const thread = {
+      companyId: actor.activeCompanyId,
+      OR: [
+        { opportunityId: opportunity.id },
+        ...(opportunity.fromLead ? [{ leadId: opportunity.fromLead.id }] : []),
+      ],
+    };
+    const sent = (await this.emails.findMany({
+      where: {
+        direction: 'out',
+        purpose: 'quotation',
+        status: 'sent',
+        quotationId: { not: null },
+        ...thread,
+      },
+      orderBy: { occurredAt: 'desc' },
+      take: 20,
+      select: { quotationId: true, occurredAt: true },
+    })) as { quotationId: string; occurredAt: Date }[];
+    if (!sent.length) return null;
+
+    const standing = (await this.quotations.findMany({
+      where: {
+        id: { in: sent.map((row) => row.quotationId) },
+        companyId: actor.activeCompanyId,
+        opportunityId: opportunity.id,
+        status: { in: ['sent', 'accepted'] },
+      },
+      select: { id: true, quotationNo: true, version: true },
+    })) as { id: string; quotationNo: string; version: number }[];
+    // newest emailed quotation that still stands
+    const emailed = sent.find((row) =>
+      standing.some((quotation) => quotation.id === row.quotationId),
+    );
+    if (!emailed) return null;
+
+    const quotation = standing.find((row) => row.id === emailed.quotationId)!;
+    const label = `${quotation.quotationNo} v${quotation.version}`;
+    const confirmation = await this.emails.findFirst({
+      where: {
+        direction: 'in',
+        intent: { in: ['confirmed', 'purchase_order'] },
+        occurredAt: { gte: emailed.occurredAt },
+        ...thread,
+      },
+      select: { id: true },
+    });
+    if (!confirmation) {
+      throw new AppError(
+        'CRM_QUOTATION_STATE_INVALID',
+        `ใบเสนอราคา ${label} ส่งให้ลูกค้าทางอีเมลแล้ว — เปิดใบสั่งขายได้เมื่อลูกค้าตอบอีเมลยืนยันใบเสนอราคาหรือส่ง PO`,
+        [{ field: 'quotation_id', reason: 'email_confirmation_required' }],
+      );
+    }
+    if (dto.quotation_id && dto.quotation_id !== quotation.id) {
+      throw new AppError(
+        'CRM_QUOTATION_STATE_INVALID',
+        `ลูกค้ายืนยันใบเสนอราคา ${label} ทางอีเมล — เปิดใบสั่งขายตามใบนั้น`,
+        [{ field: 'quotation_id', reason: 'email_confirmed_other' }],
+      );
+    }
+    return quotation.id;
   }
 
   /** Visible AND still open (not won/lost). SCOPE-03: unseen = 404. */
