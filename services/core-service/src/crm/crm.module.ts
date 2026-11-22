@@ -14,6 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { CustomersService } from './customers.service';
 import { CrmAdminService } from './crm-admin.service';
 import { CustomerRepository } from './customer.repository';
+import { CrmEmailRepository } from '../mail/crm-email.repository';
 import {
   CustomerLocationRepository,
   CustomerContactRepository,
@@ -264,6 +265,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityProductRepository,
     OpportunityLostReasonRepository,
     SaleOrderRepository,
+    // opening a sale order reads the customer's confirming email (22 พ.ย. 2569)
+    // — the repository only: MailModule imports this module
+    CrmEmailRepository,
     QuotationRepository,
     QuotationLineRepository,
     QuotationsService,
