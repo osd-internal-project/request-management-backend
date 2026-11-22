@@ -382,7 +382,14 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     const leads = { update: jest.fn(() => Promise.resolve({})) };
     const quotations = {
       findFirst: jest.fn(() => Promise.resolve(null)),
+      findMany: jest.fn((): Promise<Args[]> => Promise.resolve([])),
+      update: jest.fn(() => Promise.resolve({})),
       updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
+    };
+    // no quotation was emailed unless a test says so
+    const emails = {
+      findMany: jest.fn((): Promise<Args[]> => Promise.resolve([])),
+      findFirst: jest.fn((): Promise<Args | null> => Promise.resolve(null)),
     };
     const customers = {
       findFirst: jest.fn((args: { where: Record<string, unknown> }) => {
@@ -428,10 +435,12 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       erpSync as never,
       catalog as never,
       leadClosing as never,
+      emails as never,
     );
 
     return {
       service,
+      emails,
       leadClosing,
       erpSync,
       catalog,
@@ -995,5 +1004,114 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     expect(firstArg<DataArgs>(h.saleOrders.create).data).toEqual(
       expect.objectContaining({ quotationId: 'q-1', amount: 1900000 }),
     );
+  });
+
+  // 22 พ.ย. 2569 — ส่งใบเสนอราคาทางอีเมลแล้ว ต้องได้อีเมลยืนยันก่อนเปิดใบสั่งขาย
+  function emailedQuotation(h: ReturnType<typeof harness>) {
+    h.emails.findMany.mockResolvedValue([
+      { quotationId: 'q-1', occurredAt: new Date('2026-11-22T08:18:00Z') },
+    ]);
+    h.quotations.findMany.mockResolvedValue([
+      { id: 'q-1', quotationNo: 'QT-OSD-000001', version: 1 },
+    ]);
+  }
+
+  it('ส่งใบเสนอราคาทางอีเมลแล้ว ลูกค้ายังไม่ตอบยืนยัน → เปิดใบสั่งขายไม่ได้ และไม่สร้างลูกค้า', async () => {
+    const h = harness();
+    emailedQuotation(h);
+
+    await expect(
+      h.service.open('opportunity-1', {}, principal()),
+    ).rejects.toMatchObject({
+      code: 'CRM_QUOTATION_STATE_INVALID',
+      details: [
+        { field: 'quotation_id', reason: 'email_confirmation_required' },
+      ],
+    });
+
+    // only a reply after that email, confirming or sending a PO, counts
+    expect(firstArg<{ where: Args }>(h.emails.findFirst).where).toEqual(
+      expect.objectContaining({
+        direction: 'in',
+        intent: { in: ['confirmed', 'purchase_order'] },
+        occurredAt: { gte: new Date('2026-11-22T08:18:00Z') },
+      }),
+    );
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('ลูกค้าตอบอีเมลยืนยันแล้ว → เปิดตามใบเสนอราคาใบนั้นเอง และใบเปลี่ยนเป็นลูกค้ายอมรับ', async () => {
+    const h = harness();
+    emailedQuotation(h);
+    h.emails.findFirst.mockResolvedValueOnce({ id: 'mail-in-1' });
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'sent',
+      netTotal: 410000,
+      lines: [
+        {
+          id: 'ql-1',
+          lineNo: 1,
+          productCode: 'SERVER',
+          description: 'Server',
+          quantity: 1,
+          unit: 'เครื่อง',
+          unitPrice: 410000,
+          discountPct: 0,
+          lineTotal: 410000,
+        },
+      ],
+    } as never);
+
+    await h.service.open('opportunity-1', {}, principal());
+
+    const accepted = firstArg<DataArgs & { where: Args }>(h.quotations.update);
+    expect(accepted.where).toEqual({ id: 'q-1' });
+    expect(accepted.data).toEqual(
+      expect.objectContaining({ status: 'accepted' }),
+    );
+    const created = firstArg<DataArgs>(h.saleOrders.create).data;
+    expect(created).toEqual(
+      expect.objectContaining({ quotationId: 'q-1', amount: 410000 }),
+    );
+  });
+
+  it('ลูกค้ายืนยันทางอีเมลแล้ว กรอกรายการเองไม่ได้ — รายการมาจากใบเสนอราคา', async () => {
+    const h = harness();
+    emailedQuotation(h);
+    h.emails.findFirst.mockResolvedValueOnce({ id: 'mail-in-1' });
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'sent',
+      netTotal: 410000,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        { lines: [{ description: 'Server', quantity: 1, unit_price: 1 }] },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('ใบที่ส่งทางอีเมลไม่ยืนอยู่แล้ว (ปฏิเสธ/ยกเลิก/ถูกแทน) → ไม่บังคับอีเมลยืนยัน', async () => {
+    const h = harness();
+    h.emails.findMany.mockResolvedValue([
+      { quotationId: 'q-old', occurredAt: new Date('2026-11-01T00:00:00Z') },
+    ]);
+    // no standing quotation among the emailed ones
+
+    await h.service.open('opportunity-1', {}, principal());
+
+    expect(h.emails.findFirst).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).toHaveBeenCalledTimes(1);
   });
 });
