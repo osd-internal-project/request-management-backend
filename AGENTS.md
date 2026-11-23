@@ -496,7 +496,11 @@ own scope `integration.process.dispatch`, and tells one of the company's people
 that something happened. The answer is data — matching rule, leave, open work,
 queue — never a process decision; for a Lead it also writes the owner through
 `LeadsService.assign`, and a Lead that already has one keeps it. A notice links
-to a document by type and id, never to a URL the caller supplies. Closing a
+to a document by type and id, never to a URL the caller supplies. `GET
+process/line-recipients?email=|user_id=` (20 Nov 2026; `user_id` = the
+`approverUserId` an approval step names) answers which LINE a member linked
+in the key's company, so a workflow pushes a card to that person and checks
+`expectedUserId` against them — the LINE id and name only, 404 for anyone else. Closing a
 request is **not** here: the workflow completes it through `requests/:ref/
 actions/complete` acting as the assignee, so REQ-08 still holds. A tenth is
 again a decision to state here.
@@ -596,6 +600,16 @@ reports already sent to it, and knowledge articles published to customers
 (all, or that customer) through `KbPortalService` (CD-261); a case it raises is a service job under the
 company's configured portal user, as a CD-66 channel's requester is. A
 fourth is a decision to state here.
+
+**The fourth: the LINE Login callback (20 Nov 2026, user decision).**
+`GET notifications/line/callback` is `@Public()` on core-service: LINE sends the
+browser back here after a user links their own LINE to their company's OA. The
+credential is the `state` CTD signed (HMAC with `LINE_STATE_SECRET`, naming the
+user and company, 10 minutes) plus LINE's own verification of the ID token
+against that company's Login channel. It writes only that user's
+`user_line_accounts` row for that company and answers `{ ok, reason }`, never
+data. The web app reaches it from `/api/public/line/callback`, rate-limited by
+address. A fifth is again a decision to state here.
 
 **An MCP tool answers only what the asker's screens would (CD-277).** Every
 tool runs as the person — their own token, or `X-Acting-User` — through the

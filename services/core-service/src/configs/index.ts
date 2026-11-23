@@ -89,6 +89,19 @@ export default () => ({
     /** CD-171 — reminders / expiry sweep (0 = off, e.g. in tests). */
     sweepIntervalMs: Number(process.env.ESIGN_SWEEP_INTERVAL_MS ?? 3_600_000),
   },
+  /**
+   * LINE Login linking. `publicUrl` is the web app LINE sends the browser back
+   * to; `stateSecret` signs the round-trip `state` — set it in every environment.
+   */
+  line: {
+    publicUrl:
+      process.env.LINE_PUBLIC_URL ??
+      process.env.ESIGN_PUBLIC_URL ??
+      'http://localhost:3000',
+    stateSecret:
+      process.env.LINE_STATE_SECRET ??
+      (process.env.NODE_ENV === 'production' ? undefined : 'dev-line-state'),
+  },
   /** CD-217 — the key project configuration secrets are encrypted with. */
   projectConfig: {
     secret: keyringFromEnv(process.env),
