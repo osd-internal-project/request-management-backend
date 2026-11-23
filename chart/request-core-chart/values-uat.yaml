@@ -18,6 +18,7 @@ configmap:
   KEYCLOAK_REALM: "enterprise-request-uat"
   INTEGRATION_CLIENT_ID: "request-integration"
   PUBLIC_WEB_URL: "https://ctd-uat.osd.co.th"
+  LINE_PUBLIC_URL: "https://ctd-uat.osd.co.th"
   PDPA_MODE: "mock"
   METABASE_SITE_URL: ""
 
