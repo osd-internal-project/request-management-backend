@@ -57,6 +57,10 @@ secrets:
   INTEGRATION_CLIENT_SECRET: ""
   CONFIG_SECRET_KEY: ""
   LINE_STATE_SECRET: ""
+  DCALL_WORKSPACE_ID: ""
+  DCALL_WORKSPACE_KEY: ""
+  DCALL_WIDGET_ID: ""
+  DCALL_WIDGET_KEY: ""
 
 # The runtime image has no Prisma CLI, so there is no migration hook. Apply migrations by hand:
 #   DATABASE_URL=<url> yarn prisma:migrate:deploy
