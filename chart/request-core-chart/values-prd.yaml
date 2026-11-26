@@ -1,0 +1,32 @@
+# PRD (cluster internal-prod, namespace request-management, host ctd.osd.co.th). Everything environment specific lives here; values.yaml holds the defaults.
+namespace: request-management
+
+replicaCount: 2
+
+# Helm merges maps key by key, so the WHOLE map is written here: a partial one silently keeps a value from values.yaml.
+configmap:
+  STORAGE_MODE: "minio"
+  MINIO_ENDPOINT: "obs.ap-southeast-2.myhuaweicloud.com"
+  MINIO_PORT: "443"
+  MINIO_USE_SSL: "true"
+  MINIO_BUCKET: "NOT-SET-obs-bucket"   # placeholder: set the PROD OBS bucket (file uploads fail until then)
+  NODE_ENV: "production"
+  CORE_SERVICE_PORT: "3002"
+  USER_SERVICE_URL: "http://request-user-service.request-management.svc.cluster.local:8884/api/v1"
+  RUN_NUMBER_SERVICE_URL: "http://request-run-number-service.request-management.svc.cluster.local:8887/api/v1"
+  KEYCLOAK_BASE_URL: "https://auth.osd.co.th"
+  KEYCLOAK_REALM: "osd-internal"
+  INTEGRATION_CLIENT_ID: "request-integration"
+  PUBLIC_WEB_URL: "https://ctd.osd.co.th"
+  LINE_PUBLIC_URL: "https://ctd.osd.co.th"
+  PDPA_MODE: "mock"   # interim stand-in (same as UAT): use http + PDPA_BASE_URL before real customer data
+  METABASE_SITE_URL: ""
+
+autoscaling:
+  enabled: false
+
+hostAliases:
+  # Resolve the Keycloak host (auth.osd.co.th) through the in-cluster Traefik (ClusterIP), not public DNS / WAF.
+  - ip: "100.96.0.236"
+    hostnames:
+      - "auth.osd.co.th"

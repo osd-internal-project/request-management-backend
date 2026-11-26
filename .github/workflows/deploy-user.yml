@@ -21,6 +21,7 @@ on:
         default: uat
         options:
           - uat
+          - prd
       image_tag:
         description: 'Existing tag to deploy (skips the build). Promote sit → prod, or roll back.'
         required: false

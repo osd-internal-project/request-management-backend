@@ -56,9 +56,9 @@ concurrency:
 
 jobs:
   deploy:
-    # uat runs on the runner of the UAT cluster (kube-osd-uat); other envs keep the existing runner
-    runs-on: ${{ inputs.deploy_env == 'uat' && fromJSON('["self-hosted", "Linux", "X64", "kube-osd-uat"]') || fromJSON('["self-hosted", "k8s"]') }}
-    environment: ${{ inputs.deploy_env == 'uat' && 'uat-osd' || inputs.deploy_env == 'sit' && 'SIT' || inputs.deploy_env == 'prod' && 'PROD' || 'SIT' }}
+    # uat and prd run on the runner of their own cluster (kube-osd-uat / kube-osd-internal-prod); other envs keep the existing runner
+    runs-on: ${{ inputs.deploy_env == 'uat' && fromJSON('["self-hosted", "Linux", "X64", "kube-osd-uat"]') || inputs.deploy_env == 'prd' && fromJSON('["self-hosted", "Linux", "X64", "kube-osd-internal-prod"]') || fromJSON('["self-hosted", "k8s"]') }}
+    environment: ${{ inputs.deploy_env == 'uat' && 'uat-osd' || inputs.deploy_env == 'prd' && 'prd' || inputs.deploy_env == 'sit' && 'SIT' || inputs.deploy_env == 'prod' && 'PROD' || 'SIT' }}
 
     steps:
       - name: Checkout Repository
@@ -71,14 +71,32 @@ jobs:
           CHART="${{ inputs.chart_dir }}"
           REL=$(grep '^name:' ${CHART}/Chart.yaml | awk '{print $2}')
           APP=$(grep '^appName:' ${CHART}/values.yaml | awk '{print $2}')
-          # uat lives in its own cluster under the bare prefix (no -uat suffix)
-          if [ "${{ inputs.deploy_env }}" = "uat" ]; then NS="${{ inputs.namespace_prefix }}"; else NS="${{ inputs.namespace_prefix }}-${{ inputs.deploy_env }}"; fi
+          # uat and prd live in their own clusters under the bare prefix (no env suffix)
+          if [ "${{ inputs.deploy_env }}" = "uat" ] || [ "${{ inputs.deploy_env }}" = "prd" ]; then NS="${{ inputs.namespace_prefix }}"; else NS="${{ inputs.namespace_prefix }}-${{ inputs.deploy_env }}"; fi
           [ -n "${REL}" ] || { echo "::error::no name: in ${CHART}/Chart.yaml"; exit 1; }
           [ -n "${APP}" ] || { echo "::error::no appName: in ${CHART}/values.yaml"; exit 1; }
           echo "release=${REL}" >> "$GITHUB_OUTPUT"
           echo "app=${APP}"     >> "$GITHUB_OUTPUT"
           echo "ns=${NS}"       >> "$GITHUB_OUTPUT"
           echo "release=${REL}  app=${APP}  ns=${NS}"
+
+      # prd: refuse to run against the wrong cluster or with unfinished values.
+      - name: Verify prd target
+        if: inputs.deploy_env == 'prd'
+        run: |
+          set -euo pipefail
+          SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+          if [ "$SERVER" != "https://10.139.1.10:6443" ]; then
+            echo "::error::The runner is not pointed at internal-prod (got $SERVER)."
+            exit 1
+          fi
+          if grep -n 'TODO' "${{ inputs.chart_dir }}/values-prd.yaml"; then
+            echo "::error::values-prd.yaml still has TODO values (see lines above). Fill them in before deploying to prd."
+            exit 1
+          fi
+          if grep -n 'NOT-SET-' "${{ inputs.chart_dir }}/values-prd.yaml"; then
+            echo "::warning::values-prd.yaml still has NOT-SET- placeholders (lines above): the features that use them will not work until they are replaced."
+          fi
 
       # Name must match imagePullSecretName in values.yaml.
       - name: Create Image Pull Secret
@@ -145,11 +163,14 @@ jobs:
               echo "::error::secret '${secret_name}' (for ${chart_key}) is empty or not set — check it exists in this environment"
               exit 1
             fi
+            case "$secret_value" in
+              NOT-SET-*) echo "::warning::secret '${secret_name}' is still a placeholder (${secret_value}): the feature that uses it will not work until the real value is set in this environment." ;;
+            esac
             SETS+=(--set-string "${chart_key}=${secret_value}")
           done <<< "$SET_SECRETS"
 
-          # uat: no --atomic. A rollback deletes the failing pod and its logs, and a UAT failure has to be debuggable.
-          if [ "$ENV_NAME" = "uat" ]; then WAIT_FLAG=(--wait); else WAIT_FLAG=(--atomic); fi
+          # uat and prd: no --atomic. A rollback deletes the failing pod and its logs, and a failure has to be debuggable.
+          if [ "$ENV_NAME" = "uat" ] || [ "$ENV_NAME" = "prd" ]; then WAIT_FLAG=(--wait); else WAIT_FLAG=(--atomic); fi
 
           echo "🚀 Helm upgrade ${REL} (env: ${ENV_NAME})"
           echo "📦 Image: ${IMG}:${VER}"
@@ -210,5 +231,14 @@ jobs:
           for pod in $(kubectl get pods -n ${NS} -l app=${APP} \
             --no-headers -o custom-columns=':metadata.name'); do
             echo "--- Logs: ${pod} ---"
-            kubectl logs -n ${NS} ${pod} --tail=50 2>/dev/null || echo "(no logs)"
+            kubectl logs -n ${NS} ${pod} --tail=80 2>&1 || true
+            echo "--- Logs (previous container): ${pod} ---"
+            kubectl logs -n ${NS} ${pod} --previous --tail=80 2>&1 || true
           done
+
+          # prd runs without --atomic (it would delete the pods before their logs could be read): roll back here, after the logs.
+          if [ "${{ inputs.deploy_env }}" = "prd" ]; then
+            echo "====== ROLLBACK (prd runs without --atomic) ======"
+            REL="${{ steps.n.outputs.release }}"
+            helm rollback ${REL} 0 -n ${NS} --wait --timeout 3m || helm uninstall ${REL} -n ${NS} --no-hooks || true
+          fi
