@@ -899,6 +899,53 @@ describe('CM-08 เลขผู้เสียภาษีไม่หลุด�
     });
   });
 
+  function fieldFilters(search: jest.Mock): unknown[] {
+    const [[where]] = search.mock.calls as [
+      { AND: [unknown, { AND?: unknown[] }] },
+    ][];
+    return where.AND[1].AND ?? [];
+  }
+
+  it('ค้นหาเพิ่มเติม: ทุกช่องที่กรอกแคบลงพร้อมกัน และรายหลักได้ทั้งรายหลักกับสาขาในเครือ', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), {
+      customer_code: ' cus-osd ',
+      branch_name: 'ลาดพร้าว',
+      external_code: '00002',
+      head_office_id: 'hq-1',
+    } as never);
+
+    expect(fieldFilters(h.customers.search)).toEqual([
+      { customerCode: { contains: 'cus-osd', mode: 'insensitive' } },
+      { branchName: { contains: 'ลาดพร้าว', mode: 'insensitive' } },
+      {
+        externalCodes: {
+          some: { externalCode: { contains: '00002', mode: 'insensitive' } },
+        },
+      },
+      { OR: [{ id: 'hq-1' }, { headOfficeId: 'hq-1' }] },
+    ]);
+  });
+
+  it('ค้นหาเพิ่มเติม CM-08: ไม่มีสิทธิ์เห็นเลขภาษี = ช่องเลขภาษีต้องตรงทั้งเลข', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(['crm.customer.read'], false), {
+      tax_id: '31012',
+    } as never);
+
+    expect(fieldFilters(h.customers.search)).toEqual([{ taxId: '31012' }]);
+  });
+
+  it('ค้นหาเพิ่มเติม: ไม่กรอกช่องใด = ไม่มีเงื่อนไขเพิ่ม', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { name: '   ' } as never);
+
+    expect(fieldFilters(h.customers.search)).toEqual([]);
+  });
+
   it('ค้นรายการ: ค้นจังหวัดของที่อยู่ที่ยังใช้งาน', async () => {
     const h = harness({});
 
