@@ -290,6 +290,68 @@ export class ListCustomersQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
+
+  // --- ค้นหาเพิ่มเติม: each narrows the list further (AND), unlike `search`,
+  // which matches any one of its fields.
+
+  @ApiPropertyOptional({
+    example: 'CUS-OSD-0001',
+    description: 'บางส่วนของรหัสลูกค้า',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  customer_code?: string;
+
+  @ApiPropertyOptional({ description: 'บางส่วนของชื่อไทยหรือชื่ออังกฤษ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional({ example: '00000', description: 'บางส่วนของรหัสสาขา' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  branch_code?: string;
+
+  @ApiPropertyOptional({ description: 'บางส่วนของชื่อสาขา' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  branch_name?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'เลขผู้เสียภาษี — ค้นบางส่วนได้เมื่อมีสิทธิ์เห็นเลข ไม่มีสิทธิ์ต้องตรงทั้งเลข (CM-08)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(13)
+  tax_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'บางส่วนของรหัสลูกค้าในระบบอื่น (รหัสเดิม, SAP)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  external_code?: string;
+
+  @ApiPropertyOptional({
+    description: 'id ลูกค้ารายหลัก — ได้รายหลักนั้นและสาขาในเครือ',
+  })
+  @IsOptional()
+  @IsString()
+  head_office_id?: string;
+
+  @ApiPropertyOptional({
+    example: 'true',
+    description: '`true` เฉพาะลูกค้าที่มีสาขาในเครือ (ใช้เติมตัวเลือกรายหลัก)',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  has_branches?: 'true';
 }
 
 export class CheckDuplicateDto {

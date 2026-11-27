@@ -192,6 +192,62 @@ export class CustomersService {
       ];
     }
 
+    // ค้นหาเพิ่มเติม — every field given narrows the list (AND). Kept inside
+    // `filters`, so the summary counts built from it stay in step.
+    const fields: Prisma.CustomerWhereInput[] = [];
+    const text = (value?: string) => value?.trim() || undefined;
+    const code = text(query.customer_code);
+    const name = text(query.name);
+    const branchCode = text(query.branch_code);
+    const branchName = text(query.branch_name);
+    const taxId = text(query.tax_id);
+    const externalCode = text(query.external_code);
+
+    if (code) {
+      fields.push({ customerCode: { contains: code, mode: 'insensitive' } });
+    }
+    if (name) {
+      fields.push({
+        OR: [
+          { nameTh: { contains: name, mode: 'insensitive' } },
+          { nameEn: { contains: name, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (branchCode) fields.push({ branchCode: { contains: branchCode } });
+    if (branchName) {
+      fields.push({
+        branchName: { contains: branchName, mode: 'insensitive' },
+      });
+    }
+    if (taxId) {
+      // CM-08 — the same rule as `search`: no partial match on a masked field.
+      fields.push(
+        taxIdHidden(actor) ? { taxId } : { taxId: { contains: taxId } },
+      );
+    }
+    if (externalCode) {
+      fields.push({
+        externalCodes: {
+          some: {
+            externalCode: { contains: externalCode, mode: 'insensitive' },
+          },
+        },
+      });
+    }
+    if (query.head_office_id) {
+      fields.push({
+        OR: [
+          { id: query.head_office_id },
+          { headOfficeId: query.head_office_id },
+        ],
+      });
+    }
+    if (query.has_branches === 'true') {
+      fields.push({ branchCustomers: { some: {} } });
+    }
+    if (fields.length) filters.AND = fields;
+
     // AND rather than spread: the scope where carries its own OR, and merging
     // two ORs by spread silently drops one of them.
     return {
@@ -1477,7 +1533,13 @@ export class CustomersService {
         companies: { some: { companyId: actor.activeCompanyId } },
       },
       // the owner's unit in THIS company, not another company's
-      select: { id: true, companies: { where: { companyId: actor.activeCompanyId }, select: { orgUnitId: true } } },
+      select: {
+        id: true,
+        companies: {
+          where: { companyId: actor.activeCompanyId },
+          select: { orgUnitId: true },
+        },
+      },
     })) as { id: string; companies: { orgUnitId: string | null }[] } | null;
 
     if (!owner) {
