@@ -6,6 +6,7 @@ import {
   NestInterceptor,
   Optional,
   SetMetadata,
+  StreamableFile,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, map } from 'rxjs';
@@ -61,8 +62,20 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
     const principal = getPrincipal(request);
     if (!principal) return next.handle();
 
-    return next
-      .handle()
-      .pipe(map((body) => this.masker.mask(resource, body, principal)));
+    return next.handle().pipe(
+      map((body) =>
+        /*
+            A file is not a record: the masker copies an object to drop its
+            fields, and a copied StreamableFile is a plain object that Nest
+            sends as JSON instead of streaming — the quotation PDF came out
+            as `{"options":…,"stream":…}`. A controller-wide
+            `@SensitiveResource` covers its file routes too, so they are let
+            through here; what a file may contain is its builder's concern.
+          */
+        body instanceof StreamableFile || Buffer.isBuffer(body)
+          ? body
+          : this.masker.mask(resource, body, principal),
+      ),
+    );
   }
 }

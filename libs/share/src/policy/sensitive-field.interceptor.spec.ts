@@ -1,4 +1,5 @@
 import { of, lastValueFrom } from 'rxjs';
+import { StreamableFile } from '@nestjs/common';
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import {
@@ -179,5 +180,34 @@ describe('SCOPE-04 masking reaches rows of a top-level array', () => {
     };
 
     expect(result.data[0].lines[0]).not.toHaveProperty('unit_price');
+  });
+});
+
+/**
+ * A controller-wide `@SensitiveResource` also covers its file routes. The
+ * masker copies objects, and a copied StreamableFile is sent as JSON — the
+ * quotation PDF reached the browser as `{"options":…,"stream":…}`.
+ */
+describe('file responses pass through unmasked', () => {
+  it('hands back the same StreamableFile instance', async () => {
+    const file = new StreamableFile(Buffer.from('%PDF-1.7'), {
+      type: 'application/pdf',
+    });
+
+    const { result } = (await through(file, principal([]))) as {
+      result: unknown;
+    };
+
+    expect(result).toBe(file);
+  });
+
+  it('hands back a raw Buffer untouched', async () => {
+    const buffer = Buffer.from('%PDF-1.7');
+
+    const { result } = (await through(buffer, principal([]))) as {
+      result: unknown;
+    };
+
+    expect(result).toBe(buffer);
   });
 });
