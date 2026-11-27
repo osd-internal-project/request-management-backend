@@ -69,7 +69,9 @@ export class CustomerRepository extends BaseRepository<
     options: {
       skip: number;
       take: number;
-      orderBy?: Prisma.CustomerOrderByWithRelationInput;
+      orderBy?:
+        | Prisma.CustomerOrderByWithRelationInput
+        | Prisma.CustomerOrderByWithRelationInput[];
     },
     option?: TxOption,
   ) {

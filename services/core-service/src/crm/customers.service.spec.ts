@@ -946,6 +946,43 @@ describe('CM-08 เลขผู้เสียภาษีไม่หลุด�
     expect(fieldFilters(h.customers.search)).toEqual([]);
   });
 
+  function orderByOf(search: jest.Mock): unknown {
+    const [[, options]] = search.mock.calls as [
+      [unknown, { orderBy?: unknown }],
+    ];
+    return options.orderBy;
+  }
+
+  it('เรียงลำดับ: คอลัมน์ที่อนุญาตเรียงได้ และมี id ต่อท้ายให้หน้าถัดไปไม่ซ้ำแถว', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { sort: '-branchCode' } as never);
+
+    expect(orderByOf(h.customers.search)).toEqual([
+      { branchCode: 'desc' },
+      { id: 'asc' },
+    ]);
+  });
+
+  it('เรียงลำดับ: ชื่อสาขาที่ว่างอยู่ท้ายเสมอ ไม่ว่าจะเรียงขึ้นหรือลง', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { sort: '-branchName' } as never);
+
+    expect(orderByOf(h.customers.search)).toEqual([
+      { branchName: { sort: 'desc', nulls: 'last' } },
+      { id: 'asc' },
+    ]);
+  });
+
+  it('เรียงลำดับ: คอลัมน์นอกรายการที่อนุญาต (เลขภาษี) ถูกเมิน ใช้ลำดับตั้งต้น', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { sort: 'taxId' } as never);
+
+    expect(orderByOf(h.customers.search)).toBeUndefined();
+  });
+
   it('ค้นรายการ: ค้นจังหวัดของที่อยู่ที่ยังใช้งาน', async () => {
     const h = harness({});
 

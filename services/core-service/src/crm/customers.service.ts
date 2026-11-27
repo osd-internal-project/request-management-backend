@@ -86,6 +86,8 @@ const SORTABLE = [
   'updatedAt',
   'customerCode',
   'nameTh',
+  'branchCode',
+  'branchName',
   'status',
 ] as const;
 
@@ -133,11 +135,22 @@ export class CustomersService {
     const { skip, take } = toSkipTake(query);
     const where = this.scopedWhere(actor, query);
 
+    // Most sortable columns repeat (status, branch 00000), and Postgres orders
+    // ties however it likes — without a second key a row can show on two pages
+    // and another on none.
+    // Most customers have no branch name; left to Postgres they would lead a
+    // descending sort, burying every row that has one.
+    const sorted = toOrderBy(query.sort, SORTABLE);
+    const primary: Prisma.CustomerOrderByWithRelationInput | undefined =
+      sorted?.branchName
+        ? { branchName: { sort: sorted.branchName, nulls: 'last' } }
+        : sorted;
+
     const [rows, total] = await Promise.all([
       this.customers.search(where, {
         skip,
         take,
-        orderBy: toOrderBy(query.sort, SORTABLE),
+        orderBy: primary ? [primary, { id: 'asc' }] : undefined,
       }),
       this.customers.countWhere(where),
     ]);
